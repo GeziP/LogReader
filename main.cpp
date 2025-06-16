@@ -1,4 +1,6 @@
 #include <QApplication>
+#include <QTranslator>
+#include <QLibraryInfo>
 #include <QMessageBox>
 #include <QDebug>
 #include <exception>
@@ -15,6 +17,21 @@ int main(int argc, char *argv[])
 {
     std::set_terminate(myTerminateHandler);
     QApplication a(argc, argv);
+
+    QStringList candidates = {
+        QLocale::system().name(),
+        QLocale::system().languageToString(QLocale::system().language()).toLower(),
+        "en_US",
+        "en"
+    };
+
+    QTranslator qtTranslator;
+    for (const QString& localeName : candidates)
+    {
+        if (qtTranslator.load("translation_" + localeName, QCoreApplication::applicationDirPath()))
+            break;
+    }
+    a.installTranslator(&qtTranslator);
 
     LogViewer w;
     w.show();

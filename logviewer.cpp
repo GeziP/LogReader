@@ -20,7 +20,9 @@
 #include <QProgressBar>
 #include <QGroupBox>
 #include <QSet>
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QTextCodec>
+#endif
 #include <QStyleFactory>
 #include <QFont>
 #include <QStatusBar>
@@ -400,12 +402,16 @@ QList<LogEntry> LogViewer::parseLogFile(const QString& filePath, const QString& 
 
     QTextStream in(&file);
     // 处理中文编码
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     QTextCodec *codec = QTextCodec::codecForName(encoding.toUtf8());
     if (!codec) {
         QMessageBox::warning(this, tr("错误"), tr("不支持的编码格式：%1").arg(encoding));
         return logEntries;
     }
     in.setCodec(codec);
+#else
+    in.setEncoding(QStringConverter::Utf8);
+#endif
 
     QRegularExpression regex(R"(\[(.*?)\] \[(.*?)\] \[(.*?)\] : (.*))");
     while (!in.atEnd()) {
