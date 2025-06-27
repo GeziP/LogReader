@@ -149,14 +149,10 @@ jobs:
         echo "Windows installer creation would go here"
         
     - name: Upload portable package
-      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: LogReader-${{ needs.create-release.outputs.version }}-Windows-x64-Portable.zip
-        asset_name: LogReader-${{ needs.create-release.outputs.version }}-Windows-x64-Portable.zip
-        asset_content_type: application/zip
+      run: |
+        gh release upload v${{ needs.create-release.outputs.version }} LogReader-${{ needs.create-release.outputs.version }}-Windows-x64-Portable.zip
 
   # macOS 平台构建和打包
   build-macos:
@@ -243,14 +239,10 @@ jobs:
         hdiutil create -volname "LogReader $VERSION" -srcfolder dmg_temp -ov -format UDZO "$DMG_NAME.dmg"
         
     - name: Upload DMG
-      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: build/LogReader-${{ needs.create-release.outputs.version }}-macOS.dmg
-        asset_name: LogReader-${{ needs.create-release.outputs.version }}-macOS.dmg
-        asset_content_type: application/octet-stream
+      run: |
+        gh release upload v${{ needs.create-release.outputs.version }} build/LogReader-${{ needs.create-release.outputs.version }}-macOS.dmg
 
   # Linux 平台构建和打包
   build-linux:
@@ -337,14 +329,10 @@ jobs:
         mv LogReader-*.AppImage "LogReader-$VERSION-Linux-x86_64.AppImage"
         
     - name: Upload AppImage
-      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: build/LogReader-${{ needs.create-release.outputs.version }}-Linux-x86_64.AppImage
-        asset_name: LogReader-${{ needs.create-release.outputs.version }}-Linux-x86_64.AppImage
-        asset_content_type: application/octet-stream
+      run: |
+        gh release upload v${{ needs.create-release.outputs.version }} build/LogReader-${{ needs.create-release.outputs.version }}-Linux-x86_64.AppImage
 
   # 发布后处理
   post-release:
