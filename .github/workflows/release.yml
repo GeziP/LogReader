@@ -1,0 +1,217 @@
+name: Release Build and Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version'
+        required: true
+        default: '1.0.0'
+
+env:
+  QT_VERSION: '6.5.3'
+  CMAKE_BUILD_TYPE: 'Release'
+
+jobs:
+  # 创建GitHub Release
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Get version from tag
+      id: get_version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          VERSION=${GITHUB_REF#refs/tags/v}
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+        
+    - name: Create Release
+      id: create_release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release create v${{ steps.get_version.outputs.version }} \
+          --title "LogReader v${{ steps.get_version.outputs.version }}" \
+          --notes "🚀 LogReader v${{ steps.get_version.outputs.version }} Release
+
+        ## ✨ 新功能
+        - 专业日志分析工具
+        - 多格式导出支持 (TXT/CSV/JSON)
+        - 智能筛选和搜索功能
+        - 多语言界面支持
+
+        ## 📦 下载
+        - **Windows**: LogReader-v${{ steps.get_version.outputs.version }}-Windows-x64-Portable.zip
+
+        ## 🔧 安装说明
+        Windows用户下载ZIP文件解压即可使用，无需安装。
+
+        ## 📋 系统要求
+        - Windows 10/11 x64
+        - 无需额外依赖
+
+        ---
+        **完整更新日志**: [查看所有变更](https://github.com/${{ github.repository }}/compare/v${{ steps.get_version.outputs.version }})"
+
+  # Windows 专用构建和打包
+  build-windows:
+    name: Build Windows Release  
+    needs: create-release
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: ${{ env.QT_VERSION }}
+        
+    - name: Setup MSVC
+      uses: microsoft/setup-msbuild@v1
+      
+    - name: Compile translations
+      run: |
+        Get-ChildItem "translations\*.ts" | ForEach-Object {
+          Write-Host "Compiling $($_.Name)"
+          lrelease $_.FullName
+        }
+        
+    - name: Build with CMake
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }}
+        cmake --build . --config ${{ env.CMAKE_BUILD_TYPE }}
+        
+    - name: Verify build output
+      run: |
+        cd build
+        if (Test-Path "Release\LogReader.exe") {
+          Write-Host "✅ LogReader.exe found in Release directory"
+          $exePath = "Release\LogReader.exe"
+        } elseif (Test-Path "LogReader.exe") {
+          Write-Host "✅ LogReader.exe found in build directory"
+          $exePath = "LogReader.exe"
+        } else {
+          Write-Host "❌ LogReader.exe not found!"
+          Get-ChildItem -Recurse -Name "*.exe"
+          exit 1
+        }
+        
+        Write-Host "Executable size: $((Get-Item $exePath).Length) bytes"
+        
+    - name: Deploy Qt dependencies
+      run: |
+        cd build
+        if (Test-Path "Release\LogReader.exe") {
+          cd Release
+          windeployqt.exe --release --no-translations --no-system-d3d-compiler --no-opengl-sw LogReader.exe
+          cd ..
+        } else {
+          windeployqt.exe --release --no-translations --no-system-d3d-compiler --no-opengl-sw LogReader.exe
+        }
+        
+        # 复制翻译文件到部署目录
+        if (Test-Path "Release") {
+          Copy-Item "..\translations\*.qm" "Release\" -Force -ErrorAction SilentlyContinue
+        } else {
+          Copy-Item "..\translations\*.qm" "." -Force -ErrorAction SilentlyContinue
+        }
+        
+    - name: Create portable package
+      run: |
+        $VERSION = "${{ needs.create-release.outputs.version }}"
+        $PACKAGE_NAME = "LogReader-$VERSION-Windows-x64-Portable"
+        
+        # 创建便携版目录
+        New-Item -ItemType Directory -Path $PACKAGE_NAME -Force
+        
+        cd build
+        
+        # 复制可执行文件和依赖
+        if (Test-Path "Release") {
+          Copy-Item "Release\*" "..\$PACKAGE_NAME\" -Recurse -Force
+        } else {
+          Copy-Item "*" "..\$PACKAGE_NAME\" -Recurse -Force -Exclude @("CMakeFiles", "*.cmake", "Makefile", "*.vcxproj*", "*.sln", "*.dir")
+        }
+        
+        cd ..
+        
+        # 复制文档文件
+        Copy-Item "README.md" "$PACKAGE_NAME\" -Force
+        Copy-Item "LICENSE" "$PACKAGE_NAME\" -Force
+        
+        # 创建使用说明
+        @"
+# LogReader v$VERSION - Windows 便携版
+
+## 使用方法
+1. 双击 LogReader.exe 启动程序
+2. 点击"打开日志文件"选择要分析的日志
+3. 使用筛选功能快速定位关键信息
+4. 支持导出为 TXT、CSV、JSON 格式
+
+## 系统要求
+- Windows 10/11 x64
+- 无需额外安装
+
+## 技术支持
+- GitHub: https://github.com/GeziP/LogReader
+- Email: shapigege@gmail.com
+
+LogReader Team © 2025
+"@ | Out-File -FilePath "$PACKAGE_NAME\使用说明.txt" -Encoding UTF8
+        
+        # 创建ZIP包
+        Compress-Archive -Path $PACKAGE_NAME -DestinationPath "$PACKAGE_NAME.zip"
+        
+        Write-Host "✅ Windows便携版创建完成: $PACKAGE_NAME.zip"
+        Write-Host "包大小: $((Get-Item "$PACKAGE_NAME.zip").Length) bytes"
+        
+    - name: Upload Windows package
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        $VERSION = "${{ needs.create-release.outputs.version }}"
+        gh release upload v$VERSION "LogReader-$VERSION-Windows-x64-Portable.zip"
+        Write-Host "✅ Windows包已上传到GitHub Release"
+
+  # 发布完成通知
+  post-release:
+    name: Release Complete
+    needs: [create-release, build-windows]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Success notification
+      if: success()
+      run: |
+        echo "🎉 LogReader v${{ needs.create-release.outputs.version }} Windows版发布成功!"
+        echo ""
+        echo "📦 可用下载:"
+        echo "- Windows x64 便携版"
+        echo ""
+        echo "🔗 下载地址: https://github.com/${{ github.repository }}/releases/tag/v${{ needs.create-release.outputs.version }}"
+        
+    - name: Failure notification  
+      if: failure()
+      run: |
+        echo "❌ 发布失败!"
+        echo "请检查构建日志以了解详细错误信息。" 

@@ -1,4 +1,4 @@
-name: Windows Release Build
+name: Windows Release
 
 on:
   push:
@@ -16,9 +16,8 @@ env:
   CMAKE_BUILD_TYPE: 'Release'
 
 jobs:
-  # 创建GitHub Release
   create-release:
-    name: Create GitHub Release
+    name: Create Release
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.get_version.outputs.version }}
@@ -27,7 +26,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Get version from tag
+    - name: Get version
       id: get_version
       run: |
         if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -36,42 +35,17 @@ jobs:
           VERSION=${GITHUB_REF#refs/tags/v}
         fi
         echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo "Version: $VERSION"
         
     - name: Create Release
-      id: create_release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         gh release create v${{ steps.get_version.outputs.version }} \
           --title "LogReader v${{ steps.get_version.outputs.version }}" \
-          --notes "🚀 LogReader v${{ steps.get_version.outputs.version }} Windows Release
+          --notes "LogReader v${{ steps.get_version.outputs.version }} Windows Release"
 
-        ## ✨ 主要功能
-        - 📄 专业日志分析工具
-        - 🔍 智能筛选和搜索功能  
-        - 📤 多格式导出支持 (TXT/CSV/JSON)
-        - 🌐 多语言界面支持 (中文/英文)
-        - 🧠 智能记忆上次使用设置
-
-        ## 📦 Windows 下载
-        - **Windows x64 便携版**: LogReader-v${{ steps.get_version.outputs.version }}-Windows-x64-Portable.zip
-
-        ## 🚀 快速开始
-        1. 下载ZIP文件并解压
-        2. 双击 LogReader.exe 启动
-        3. 打开日志文件开始分析
-
-        ## 📋 系统要求
-        - Windows 10/11 (x64)
-        - 无需额外安装依赖
-
-        ---
-        **GitHub**: https://github.com/${{ github.repository }}"
-
-  # Windows 构建和打包
   build-windows:
-    name: Build Windows Package
+    name: Build Windows
     needs: create-release
     runs-on: windows-latest
     
@@ -89,224 +63,53 @@ jobs:
       
     - name: Compile translations
       run: |
-        Write-Host "🌐 编译翻译文件..."
         Get-ChildItem "translations\*.ts" | ForEach-Object {
-          Write-Host "正在编译: $($_.Name)"
           lrelease $_.FullName
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "❌ 翻译编译失败: $($_.Name)"
-            exit 1
-          }
         }
-        Write-Host "✅ 翻译文件编译完成"
         
-    - name: Build with CMake
+    - name: Build project
       run: |
-        Write-Host "🔨 开始构建项目..."
         mkdir build
         cd build
-        
-        Write-Host "配置CMake..."
         cmake .. -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }}
-        if ($LASTEXITCODE -ne 0) {
-          Write-Host "❌ CMake配置失败"
-          exit 1
-        }
-        
-        Write-Host "编译项目..."
         cmake --build . --config ${{ env.CMAKE_BUILD_TYPE }}
-        if ($LASTEXITCODE -ne 0) {
-          Write-Host "❌ 项目编译失败"
-          exit 1
-        }
-        
-        Write-Host "✅ 项目构建完成"
-        
-    - name: Verify build output
-      run: |
-        Write-Host "🔍 验证构建输出..."
-        cd build
-        
-        $exePaths = @("Release\LogReader.exe", "LogReader.exe")
-        $exePath = $null
-        
-        foreach ($path in $exePaths) {
-          if (Test-Path $path) {
-            $exePath = $path
-            Write-Host "✅ 找到可执行文件: $path"
-            break
-          }
-        }
-        
-        if (-not $exePath) {
-          Write-Host "❌ 未找到 LogReader.exe!"
-          Write-Host "构建目录内容:"
-          Get-ChildItem -Recurse -Name "*.exe"
-          exit 1
-        }
-        
-        $fileSize = (Get-Item $exePath).Length
-        Write-Host "📏 可执行文件大小: $([math]::Round($fileSize/1MB, 2)) MB"
         
     - name: Deploy Qt dependencies
       run: |
-        Write-Host "📦 部署Qt依赖..."
         cd build
-        
         if (Test-Path "Release\LogReader.exe") {
-          Write-Host "使用Release目录模式"
           cd Release
-          windeployqt.exe --release --no-translations --no-system-d3d-compiler --no-opengl-sw LogReader.exe
-          $deployPath = "Release"
-        } else {
-          Write-Host "使用根目录模式"  
-          windeployqt.exe --release --no-translations --no-system-d3d-compiler --no-opengl-sw LogReader.exe
-          $deployPath = "."
-        }
-        
-        if ($LASTEXITCODE -ne 0) {
-          Write-Host "❌ Qt依赖部署失败"
-          exit 1
-        }
-        
-        # 复制翻译文件
-        Write-Host "复制翻译文件..."
-        if ($deployPath -eq "Release") {
-          Copy-Item "..\translations\*.qm" "." -Force -ErrorAction SilentlyContinue
+          windeployqt.exe --release --no-translations LogReader.exe
+          Copy-Item "..\..\translations\*.qm" "." -Force -ErrorAction SilentlyContinue
           cd ..
         } else {
+          windeployqt.exe --release --no-translations LogReader.exe
           Copy-Item "..\translations\*.qm" "." -Force -ErrorAction SilentlyContinue
         }
         
-        Write-Host "✅ Qt依赖部署完成"
-        
-    - name: Create portable package
+    - name: Create package
       run: |
-        Write-Host "📦 创建便携版安装包..."
-        
         $VERSION = "${{ needs.create-release.outputs.version }}"
         $PACKAGE_NAME = "LogReader-$VERSION-Windows-x64-Portable"
         
-        # 创建包目录
-        New-Item -ItemType Directory -Path $PACKAGE_NAME -Force | Out-Null
+        New-Item -ItemType Directory -Path $PACKAGE_NAME -Force
         
         cd build
-        
-        # 复制应用文件
         if (Test-Path "Release") {
-          Write-Host "从Release目录复制文件..."
           Copy-Item "Release\*" "..\$PACKAGE_NAME\" -Recurse -Force
         } else {
-          Write-Host "从构建根目录复制文件..."
-          $excludePatterns = @("CMakeFiles", "*.cmake", "Makefile", "*.vcxproj*", "*.sln", "*.dir", "CMakeCache.txt")
-          Get-ChildItem . | Where-Object { 
-            $item = $_
-            -not ($excludePatterns | Where-Object { $item.Name -like $_ })
-          } | Copy-Item -Destination "..\$PACKAGE_NAME\" -Recurse -Force
+          Copy-Item "*" "..\$PACKAGE_NAME\" -Recurse -Force -Exclude @("CMakeFiles", "*.cmake")
         }
         
         cd ..
-        
-        # 复制文档
         Copy-Item "README.md" "$PACKAGE_NAME\" -Force -ErrorAction SilentlyContinue
         Copy-Item "LICENSE" "$PACKAGE_NAME\" -Force -ErrorAction SilentlyContinue
         
-        # 创建中文使用说明
-        $readmeContent = @"
-# LogReader v$VERSION - Windows 便携版
-
-## 🚀 快速开始
-1. 双击 LogReader.exe 启动程序
-2. 点击"打开日志文件"选择要分析的日志文件
-3. 使用筛选功能快速定位关键信息
-4. 导出结果为 TXT、CSV、JSON 格式
-
-## ✨ 主要功能
-- 📄 支持大型日志文件分析
-- ⏰ 时间范围筛选
-- 🏷️ 日志等级筛选  
-- 🔍 关键词搜索和高亮
-- 📊 智能展示和折叠
-- 📤 多格式导出
-- 🧠 智能记忆功能
-- 🌐 中英文界面
-
-## 📋 系统要求
-- Windows 10/11 (64位)
-- 无需额外安装
-
-## 🛠️ 技术支持
-- GitHub: https://github.com/GeziP/LogReader
-- Email: shapigege@gmail.com
-
----
-LogReader Team © 2025
-"@
+        Compress-Archive -Path $PACKAGE_NAME -DestinationPath "$PACKAGE_NAME.zip"
         
-        $readmeContent | Out-File -FilePath "$PACKAGE_NAME\使用说明.txt" -Encoding UTF8
-        
-        # 创建ZIP包
-        Write-Host "压缩为ZIP文件..."
-        Compress-Archive -Path $PACKAGE_NAME -DestinationPath "$PACKAGE_NAME.zip" -Force
-        
-        $zipSize = (Get-Item "$PACKAGE_NAME.zip").Length
-        Write-Host "✅ Windows便携版创建完成!"
-        Write-Host "📦 文件名: $PACKAGE_NAME.zip"
-        Write-Host "📏 文件大小: $([math]::Round($zipSize/1MB, 2)) MB"
-        
-    - name: Upload to GitHub Release
+    - name: Upload package
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        Write-Host "⬆️ 上传到GitHub Release..."
-        
         $VERSION = "${{ needs.create-release.outputs.version }}"
-        $PACKAGE_FILE = "LogReader-$VERSION-Windows-x64-Portable.zip"
-        
-        gh release upload v$VERSION $PACKAGE_FILE
-        
-        if ($LASTEXITCODE -eq 0) {
-          Write-Host "✅ 上传成功!"
-          Write-Host "🔗 下载地址: https://github.com/${{ github.repository }}/releases/tag/v$VERSION"
-        } else {
-          Write-Host "❌ 上传失败!"
-          exit 1
-        }
-
-  # 发布完成总结
-  release-summary:
-    name: Release Summary
-    needs: [create-release, build-windows]
-    runs-on: ubuntu-latest
-    if: always()
-    
-    steps:
-    - name: Success notification
-      if: success()
-      run: |
-        echo "🎉 LogReader v${{ needs.create-release.outputs.version }} Windows版发布成功!"
-        echo ""
-        echo "✅ 发布内容:"
-        echo "  - Windows x64 便携版 (免安装)"
-        echo "  - 完整Qt依赖包含"
-        echo "  - 中英文界面支持"
-        echo ""
-        echo "🔗 下载地址:"
-        echo "  https://github.com/${{ github.repository }}/releases/tag/v${{ needs.create-release.outputs.version }}"
-        echo ""
-        echo "📊 用户可以立即下载使用，无需额外配置!"
-        
-    - name: Failure notification
-      if: failure()
-      run: |
-        echo "❌ LogReader Windows版发布失败!"
-        echo ""
-        echo "🔍 请检查以下内容:"
-        echo "  - 构建日志中的错误信息"
-        echo "  - Qt依赖部署是否成功"
-        echo "  - GitHub Token权限是否正确"
-        echo ""
-        echo "💡 常见解决方案:"
-        echo "  - 重新运行workflow"
-        echo "  - 检查代码编译错误"
-        echo "  - 验证CMakeLists.txt配置" 
+        gh release upload v$VERSION "LogReader-$VERSION-Windows-x64-Portable.zip" 
