@@ -10,11 +10,17 @@ CONFIG += c++11
 
 SOURCES += \
     logviewer.cpp \
-    main.cpp
+    main.cpp \
+    logexporter.cpp \
+    exportdialog.cpp \
+    appsettings.cpp
 
 HEADERS += \
     logentry.h \
-    logviewer.h
+    logviewer.h \
+    logexporter.h \
+    exportdialog.h \
+    appsettings.h
 
 FORMS +=
 

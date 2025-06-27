@@ -6,6 +6,8 @@
 #include <QList>
 #include <QStandardItem>
 #include "logentry.h"
+#include "logexporter.h"
+#include "appsettings.h"
 
 QT_BEGIN_NAMESPACE
 class QDateTimeEdit;
@@ -40,6 +42,7 @@ private slots:
     void onSearchNext();
     void onLogItemDoubleClicked(const QModelIndex &index);
     void onTreeItemExpanded(const QModelIndex &index);
+    void onExportFiltered();
 private:
     void loadLogFile(const QString& filePath);
     void setupUI();
@@ -55,6 +58,7 @@ private:
     void clearHighlightsInItem(QStandardItem *item);
     void highlightSearchMatches();
     void expandToItem(QStandardItem *item);
+    QList<LogEntry> getCurrentFilteredLogs() const;
     // 界面控件
     QDateTimeEdit *startTimeEdit;
     QDateTimeEdit *endTimeEdit;
@@ -71,6 +75,7 @@ private:
     QAction *openAction;
     QAction *filterAction;
     QAction *toggleFilterAction;
+    QAction *exportAction;
     QWidget *filterWidget;
     QPushButton *selectAllModulesButton;
     QPushButton *deselectAllModulesButton;

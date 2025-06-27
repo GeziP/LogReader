@@ -1,5 +1,7 @@
 #include "logviewer.h"
+#include "exportdialog.h"
 #include <QFile>
+#include <QFileInfo>
 #include <QTextStream>
 #include <QRegularExpression>
 #include <QDateTimeEdit>
@@ -283,11 +285,16 @@ void LogViewer::setupUI()
     QMenu *fileMenu = menuBar->addMenu(tr("文件"));
     openAction = fileMenu->addAction(QIcon(":/icons/open.png"), tr("打开日志文件"));
     connect(openAction, &QAction::triggered, this, &LogViewer::openLogFile);
+    fileMenu->addSeparator();
+    exportAction = fileMenu->addAction(QIcon(":/icons/export.png"), tr("导出筛选结果"));
+    exportAction->setEnabled(false); // 初始时禁用
+    connect(exportAction, &QAction::triggered, this, &LogViewer::onExportFiltered);
     setMenuBar(menuBar);
 
     // 工具栏
     QToolBar *toolBar = addToolBar(tr("工具栏"));
     toolBar->addAction(openAction);
+    toolBar->addAction(exportAction);
     filterAction = toolBar->addAction(QIcon(":/icons/filter.png"), tr("筛选"));
     connect(filterAction, &QAction::triggered, this, &LogViewer::onFilterButtonClicked);
 
@@ -305,9 +312,14 @@ void LogViewer::setupUI()
 
 void LogViewer::openLogFile()
 {
-    QString filePath = QFileDialog::getOpenFileName(this, tr("打开日志文件"), "", tr("Log Files (*.log *.txt);;All Files (*)"));
+    // 使用记忆的目录作为默认路径
+    QString defaultDir = AppSettings::instance().getRecentLogDir();
+    QString filePath = QFileDialog::getOpenFileName(this, tr("打开日志文件"), defaultDir, tr("Log Files (*.log *.txt);;All Files (*)"));
     if (!filePath.isEmpty()) {
         loadLogFile(filePath);
+        // 保存新的目录路径
+        QFileInfo fileInfo(filePath);
+        AppSettings::instance().setRecentLogDir(fileInfo.absolutePath());
     }
 }
 
@@ -387,6 +399,9 @@ void LogViewer::loadLogFile(const QString& filePath)
 
     // 显示所有日志
     displayLogs(allLogs);
+    
+    // 启用导出功能
+    exportAction->setEnabled(true);
 
     statusBar()->showMessage(tr("已加载文件：%1，日志条目数：%2").arg(filePath).arg(allLogs.size()));
 }
@@ -495,84 +510,20 @@ void LogViewer::displayLogs(const QList<LogEntry>& logs)
     QStringList headers = { tr("行号"), tr("时间"), tr("等级"), tr("模块"), tr("内容") };
     logModel->setHorizontalHeaderLabels(headers);
 
-    int totalLogs = allLogs.size();
-    int filterIndex = 0;
-    int i = 0;
-    int lineNumber = 1; // 行号从1开始
+    // 直接显示筛选后的日志，不再进行复杂的匹配和折叠逻辑
+    for (int i = 0; i < logs.size(); ++i) {
+        const LogEntry& entry = logs[i];
+        
+        QList<QStandardItem*> rowItems;
+        QStandardItem *lineNumberItem = new QStandardItem(QString::number(i + 1));
+        lineNumberItem->setTextAlignment(Qt::AlignCenter);
+        QStandardItem *timestampItem = new QStandardItem(entry.timestamp.toString("yyyy-MM-dd HH:mm:ss.zzz"));
+        QStandardItem *levelItem = new QStandardItem(entry.level);
+        QStandardItem *moduleItem = new QStandardItem(entry.module);
+        QStandardItem *contentItem = new QStandardItem(entry.content);
 
-    while (i < totalLogs) {
-        LogEntry currentEntry = allLogs[i];
-        bool matchesFilter = false;
-        if (filterIndex < logs.size() && logs[filterIndex].timestamp == currentEntry.timestamp) {
-            matchesFilter = true;
-            filterIndex++;
-        }
-
-        if (matchesFilter) {
-            // 匹配筛选条件，直接添加为顶层项
-            QList<QStandardItem*> rowItems;
-            QStandardItem *lineNumberItem = new QStandardItem(QString::number(lineNumber++));
-            lineNumberItem->setTextAlignment(Qt::AlignCenter);  // 行号居中显示
-            QStandardItem *timestampItem = new QStandardItem(currentEntry.timestamp.toString("yyyy-MM-dd HH:mm:ss.zzz"));
-            QStandardItem *levelItem = new QStandardItem(currentEntry.level);
-            QStandardItem *moduleItem = new QStandardItem(currentEntry.module);
-            QStandardItem *contentItem = new QStandardItem(currentEntry.content);
-
-            rowItems << lineNumberItem << timestampItem << levelItem << moduleItem << contentItem;
-            logModel->appendRow(rowItems);
-            i++;
-        } else {
-            // 不匹配筛选条件，收集连续的非匹配日志
-            int start = i;
-            while (i < totalLogs) {
-                LogEntry entry = allLogs[i];
-                bool matchesFilterInner = false;
-                if (filterIndex < logs.size() && logs[filterIndex].timestamp == entry.timestamp) {
-                    matchesFilterInner = true;
-                }
-                if (matchesFilterInner) {
-                    break;
-                }
-                i++;
-            }
-            int end = i - 1;
-
-            // 创建折叠项
-            int count = end - start + 1;
-            QList<QStandardItem*> foldRow;
-            foldRow << new QStandardItem(""); // 行号为空
-            foldRow << new QStandardItem(""); // 时间为空
-            foldRow << new QStandardItem(""); // 等级为空
-            foldRow << new QStandardItem(""); // 模块为空
-            QStandardItem *foldItemContent = new QStandardItem(tr("隐藏的日志 (%1 条)").arg(count));
-            foldItemContent->setForeground(QBrush(Qt::gray));
-            foldItemContent->setEditable(false);
-            foldRow << foldItemContent; // 内容列显示折叠信息
-
-            logModel->appendRow(foldRow);
-
-            // 获取刚刚添加的父项（折叠项）
-            QStandardItem *foldItem = logModel->item(logModel->rowCount() - 1);
-
-            // 将不匹配的日志作为子项添加到折叠项下
-            for (int j = start; j <= end; ++j) {
-                const auto& entry = allLogs[j];
-                QList<QStandardItem*> childRow;
-                QStandardItem *childLineNumberItem = new QStandardItem(QString::number(lineNumber++));
-                childLineNumberItem->setTextAlignment(Qt::AlignCenter);  // 子项行号也居中
-                QStandardItem *childTimestampItem = new QStandardItem(entry.timestamp.toString("yyyy-MM-dd HH:mm:ss.zzz"));
-                QStandardItem *childLevelItem = new QStandardItem(entry.level);
-                QStandardItem *childModuleItem = new QStandardItem(entry.module);
-                QStandardItem *childContentItem = new QStandardItem(entry.content);
-
-                childRow << childLineNumberItem << childTimestampItem << childLevelItem << childModuleItem << childContentItem;
-                foldItem->appendRow(childRow);
-            }
-
-            // 默认折叠
-            QModelIndex foldIndex = logModel->index(logModel->rowCount() - 1, 0);
-            logTreeView->setExpanded(foldIndex, false);
-        }
+        rowItems << lineNumberItem << timestampItem << levelItem << moduleItem << contentItem;
+        logModel->appendRow(rowItems);
     }
 
     // 设置模型
@@ -795,4 +746,91 @@ void LogViewer::onTreeItemExpanded(const QModelIndex &index)
     for (int i = 0; i < logModel->columnCount(); ++i) {
         logTreeView->resizeColumnToContents(i);
     }
+}
+
+void LogViewer::onExportFiltered()
+{
+    if (allLogs.isEmpty()) {
+        QMessageBox::information(this, tr("提示"), tr("没有日志数据可以导出"));
+        return;
+    }
+    
+    // 获取当前筛选后的日志数据
+    QList<LogEntry> filteredLogs = getCurrentFilteredLogs();
+    
+    if (filteredLogs.isEmpty()) {
+        QMessageBox::information(this, tr("提示"), tr("当前筛选条件下没有日志数据"));
+        return;
+    }
+    
+    // 显示导出对话框
+    ExportDialog dialog(this);
+    dialog.setLogCount(filteredLogs.size());
+    
+    if (dialog.exec() == QDialog::Accepted) {
+        ExportConfig config = dialog.getExportConfig();
+        
+        // 创建导出器并执行导出
+        LogExporter* exporter = new LogExporter(this);
+        
+        // 连接进度信号
+        connect(exporter, &LogExporter::progressChanged, [this](int percentage) {
+            progressBar->setValue(percentage);
+        });
+        
+        connect(exporter, &LogExporter::formatExported, [this](const QString& format, const QString& filePath) {
+            statusBar()->showMessage(tr("已导出 %1 格式到: %2").arg(format).arg(filePath), 3000);
+        });
+        
+        connect(exporter, &LogExporter::exportFinished, [this, exporter](bool success, const QString& message) {
+            progressBar->setVisible(false);
+            if (success) {
+                QMessageBox::information(this, tr("导出完成"), message);
+            } else {
+                QMessageBox::warning(this, tr("导出失败"), message);
+            }
+            exporter->deleteLater(); // 清理导出器对象
+        });
+        
+        // 显示进度条
+        progressBar->setVisible(true);
+        progressBar->setRange(0, 100);
+        progressBar->setValue(0);
+        
+        // 执行导出
+        if (config.formats.size() > 1) {
+            exporter->exportMultipleFormats(filteredLogs, config);
+        } else {
+            exporter->exportLogs(filteredLogs, config);
+        }
+    }
+}
+
+QList<LogEntry> LogViewer::getCurrentFilteredLogs() const
+{
+    if (!logModel) {
+        return QList<LogEntry>();
+    }
+    
+    QList<LogEntry> filteredLogs;
+    
+    // 遍历模型获取所有显示的日志条目
+    for (int i = 0; i < logModel->rowCount(); ++i) {
+        LogEntry entry;
+        QStandardItem* timestampItem = logModel->item(i, 1);
+        QStandardItem* levelItem = logModel->item(i, 2);
+        QStandardItem* moduleItem = logModel->item(i, 3);
+        QStandardItem* contentItem = logModel->item(i, 4);
+        
+        if (timestampItem && levelItem && moduleItem && contentItem) {
+            entry.timestamp = QDateTime::fromString(timestampItem->text(), "yyyy-MM-dd HH:mm:ss.zzz");
+            entry.level = levelItem->text();
+            entry.module = moduleItem->text();
+            entry.content = contentItem->text();
+            
+            filteredLogs.append(entry);
+        }
+    }
+    
+    return filteredLogs;
 }
