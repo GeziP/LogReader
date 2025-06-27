@@ -138,7 +138,7 @@ jobs:
         fi
         
     - name: Upload API documentation
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4.6.2
       with:
         name: api-documentation
         path: docs/api/

@@ -109,7 +109,7 @@ jobs:
         fi
         
     - name: Upload complexity report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4.6.2
       with:
         name: complexity-report
         path: complexity-report.txt
@@ -211,7 +211,7 @@ jobs:
         
     - name: Upload format report
       if: failure()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4.6.2
       with:
         name: format-report
         path: format-report.txt
@@ -294,7 +294,7 @@ jobs:
         cat quality-summary.md
         
     - name: Upload quality summary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4.6.2
       with:
         name: quality-summary
         path: quality-summary.md
