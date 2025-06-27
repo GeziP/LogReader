@@ -1,3 +1,14 @@
+/**
+ * @file appsettings.cpp
+ * @brief Implementation of Application Settings Management System
+ * @details Contains the implementation of AppSettings class methods for
+ *          handling persistent storage of application configuration data.
+ * @author GeziP
+ * @date 2025-06-27
+ * @version 1.0
+ * @copyright MIT License
+ */
+
 #include "appsettings.h"
 #include <QStandardPaths>
 #include <QDir>
@@ -10,6 +21,7 @@ const QString AppSettings::KEY_INCLUDE_TIMESTAMP = "export/includeTimestamp";
 const QString AppSettings::KEY_INCLUDE_LEVEL = "export/includeLevel";
 const QString AppSettings::KEY_INCLUDE_MODULE = "export/includeModule";
 const QString AppSettings::KEY_INCLUDE_CONTENT = "export/includeContent";
+const QString AppSettings::KEY_LANGUAGE = "ui/language";
 
 AppSettings& AppSettings::instance()
 {
@@ -87,4 +99,30 @@ void AppSettings::getLastIncludeFields(bool& timestamp, bool& level, bool& modul
     level = settings->value(KEY_INCLUDE_LEVEL, true).toBool();
     module = settings->value(KEY_INCLUDE_MODULE, true).toBool();
     content = settings->value(KEY_INCLUDE_CONTENT, true).toBool();
+}
+
+/**
+ * @brief Set application language preference
+ * @param language Language code string to save
+ * @details Saves the language preference to persistent storage using QSettings.
+ *          The preference will be loaded on next application startup.
+ */
+void AppSettings::setLanguage(const QString& language)
+{
+    if (!language.isEmpty()) {
+        settings->setValue(KEY_LANGUAGE, language);
+    }
+}
+
+/**
+ * @brief Get saved language preference
+ * @return Language code string, defaults to "zh_CN" if not set
+ * @details Retrieves language preference from persistent storage.
+ *          Returns Chinese ("zh_CN") as the default language if no
+ *          preference has been previously saved.
+ */
+QString AppSettings::getLanguage() const
+{
+    // 默认返回中文
+    return settings->value(KEY_LANGUAGE, "zh_CN").toString();
 } 

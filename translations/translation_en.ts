@@ -91,6 +91,12 @@
         <translation>Toggle filter area</translation>
     </message>
     <message>
+        <location filename="../src/ui/logviewer.cpp" line="300"/>
+        <source>语言:</source>
+        <translation>Language:</translation>
+    </message>
+
+    <message>
         <location filename="../logviewer.cpp" line="300"/>
         <source>就绪</source>
         <translation>Ready</translation>
@@ -182,6 +188,172 @@
         <location filename="../logviewer.cpp" line="783"/>
         <source>日志详情</source>
         <translation>Log details</translation>
+    </message>
+</context>
+<context>
+    <name>ExportDialog</name>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="17"/>
+        <source>导出筛选结果</source>
+        <translation>Export Filtered Results</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="54"/>
+        <source>将导出 %1 条日志记录</source>
+        <translation>%1 log records will be exported</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="63"/>
+        <source>导出格式（可多选）</source>
+        <translation>Export Format (Multiple Selection)</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="66"/>
+        <source>文本文件 (*.txt)</source>
+        <translation>Text File (*.txt)</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="67"/>
+        <source>CSV文件 (*.csv)</source>
+        <translation>CSV File (*.csv)</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="68"/>
+        <source>JSON文件 (*.json)</source>
+        <translation>JSON File (*.json)</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="77"/>
+        <source>包含字段</source>
+        <translation>Include Fields</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="79"/>
+        <source>时间戳</source>
+        <translation>Timestamp</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="80"/>
+        <source>日志等级</source>
+        <translation>Log Level</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="81"/>
+        <source>模块名称</source>
+        <translation>Module Name</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="82"/>
+        <source>日志内容</source>
+        <translation>Log Content</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="95"/>
+        <source>保存位置</source>
+        <translation>Save Location</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="104"/>
+        <source>选择导出文件夹，文件名自动生成...</source>
+        <translation>Select export folder, filename will be auto-generated...</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="105"/>
+        <source>选择文件夹...</source>
+        <translation>Select Folder...</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="115"/>
+        <source>预览格式:</source>
+        <translation>Preview Format:</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="127"/>
+        <source>导出</source>
+        <translation>Export</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="128"/>
+        <source>取消</source>
+        <translation>Cancel</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="185"/>
+        <location filename="../src/ui/exportdialog.cpp" line="274"/>
+        <location filename="../src/ui/exportdialog.cpp" line="281"/>
+        <location filename="../src/ui/exportdialog.cpp" line="287"/>
+        <source>警告</source>
+        <translation>Warning</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="185"/>
+        <source>请先选择至少一种导出格式！</source>
+        <translation>Please select at least one export format!</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="274"/>
+        <source>请至少选择一种导出格式！</source>
+        <translation>Please select at least one export format!</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="281"/>
+        <source>请至少选择一个要导出的字段！</source>
+        <translation>Please select at least one field to export!</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/exportdialog.cpp" line="287"/>
+        <source>请选择导出文件夹！</source>
+        <translation>Please select export folder!</translation>
+    </message>
+</context>
+<context>
+    <name>LogExporter</name>
+    <message>
+        <location filename="../src/core/logexporter.cpp" line="21"/>
+        <source>没有日志数据可以导出</source>
+        <translation>No log data to export</translation>
+    </message>
+    <message>
+        <location filename="../src/core/logexporter.cpp" line="30"/>
+        <source>未选择导出格式</source>
+        <translation>No export format selected</translation>
+    </message>
+    <message>
+        <location filename="../src/core/logexporter.cpp" line="38"/>
+        <source>导出文件路径不能为空</source>
+        <translation>Export file path cannot be empty</translation>
+    </message>
+    <message>
+        <location filename="../src/core/logexporter.cpp" line="45"/>
+        <source>无法创建导出目录</source>
+        <translation>Cannot create export directory</translation>
+    </message>
+    <message>
+        <location filename="../src/core/logexporter.cpp" line="68"/>
+        <source>导出成功！文件保存到: %1</source>
+        <translation>Export successful! File saved to: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/core/logexporter.cpp" line="78"/>
+        <source>导出路径配置不完整</source>
+        <translation>Export path configuration incomplete</translation>
+    </message>
+    <message>
+        <location filename="../src/core/logexporter.cpp" line="122"/>
+        <source>导出 %1 格式失败</source>
+        <translation>Failed to export %1 format</translation>
+    </message>
+    <message>
+        <location filename="../src/core/logexporter.cpp" line="139"/>
+        <source>多格式导出成功！已导出 %1 个文件：
+%2</source>
+        <translation>Multi-format export successful! %1 files exported:
+%2</translation>
+    </message>
+    <message>
+        <location filename="../src/core/logexporter.cpp" line="150"/>
+        <source>无法创建文件: %1</source>
+        <translation>Cannot create file: %1</translation>
     </message>
 </context>
 </TS>
