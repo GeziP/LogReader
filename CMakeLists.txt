@@ -20,6 +20,20 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
+# 收集源文件
+file(GLOB SOURCES 
+    src/*.cpp 
+    src/ui/*.cpp 
+    src/core/*.cpp 
+    src/utils/*.cpp)
+file(GLOB HEADERS 
+    src/*.h 
+    src/ui/*.h 
+    src/core/*.h 
+    src/utils/*.h)
+file(GLOB RESOURCE_FILE resources/*.qrc)
+file(GLOB UI_FILES src/ui/*.ui)
+
 # 设置翻译文件
 set(TS_FILES
     translations/translation_zh_CN.ts
@@ -33,38 +47,10 @@ else()
     qt5_add_translation(QM_FILES ${TS_FILES})
 endif()
 
-# 创建翻译目标
-add_custom_target(translations ALL DEPENDS ${QM_FILES})
+# 创建可执行文件（必须在使用目标之前定义）
+add_executable(LogReader ${SOURCES} ${HEADERS} ${RESOURCE_FILE} ${UI_FILES} ${TS_FILES})
 
-# 确保翻译文件被复制到输出目录
-foreach(qm_file ${QM_FILES})
-    get_filename_component(qm_filename ${qm_file} NAME)
-    add_custom_command(TARGET LogReader POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:LogReader>/translations"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${qm_file}" "$<TARGET_FILE_DIR:LogReader>/translations/${qm_filename}"
-        COMMENT "Copying ${qm_filename} to output directory"
-    )
-endforeach()
-
-# 确保翻译在主程序之前编译
-add_dependencies(LogReader translations)
-
-file(GLOB SOURCES 
-    src/*.cpp 
-    src/ui/*.cpp 
-    src/core/*.cpp 
-    src/utils/*.cpp)
-file(GLOB HEADERS 
-    src/*.h 
-    src/ui/*.h 
-    src/core/*.h 
-    src/utils/*.h)
-file(GLOB RESOURCE_FILE resources/*.qrc)
-file(GLOB UI_FILES src/ui/*.ui)
-file(GLOB RESOURCES resources/icons/*)
-
-add_executable(LogReader ${SOURCES} ${HEADERS} ${RESOURCE_FILE} ${UI_FILES} ${TS_FILES} ${RESOURCES})
-
+# 设置包含目录
 target_include_directories(LogReader PRIVATE 
     ${PROJECT_SOURCE_DIR}/src
     ${PROJECT_SOURCE_DIR}/src/ui
@@ -78,19 +64,42 @@ else()
     target_link_libraries(LogReader Qt5::Core Qt5::Gui Qt5::Widgets)
 endif()
 
-get_target_property(_qt5_qmake_location Qt::qmake IMPORTED_LOCATION)
+# 创建翻译目标
+add_custom_target(translations ALL DEPENDS ${QM_FILES})
 
-execute_process(
-    COMMAND "${_qt5_qmake_location}" -query QT_INSTALL_PREFIX
-    RESULT_VARIABLE return_code
-    OUTPUT_VARIABLE qt5_install_prefix
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
+# 确保翻译在主程序之前编译
+add_dependencies(LogReader translations)
 
-set(imported_location "${qt5_install_prefix}/bin/windeployqt.exe")
-add_custom_command(TARGET LogReader
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E remove_directory "$$<TARGET_FILE_DIR:LogReader>"
-    COMMAND ${imported_location} --dir "$<TARGET_FILE_DIR:LogReader>" "$<TARGET_FILE_DIR:LogReader>/$<TARGET_FILE_NAME:LogReader>"
-    COMMENT "Deploy Qt libraries"
-)
+# 确保翻译文件被复制到输出目录
+foreach(qm_file ${QM_FILES})
+    get_filename_component(qm_filename ${qm_file} NAME)
+    add_custom_command(TARGET LogReader POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:LogReader>/translations"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${qm_file}" "$<TARGET_FILE_DIR:LogReader>/translations/${qm_filename}"
+        COMMENT "Copying ${qm_filename} to output directory"
+    )
+endforeach()
+
+# 可选：Windows部署命令（仅在找到windeployqt时执行）
+if(WIN32 AND QT_VERSION_MAJOR EQUAL 6)
+    get_target_property(_qt_qmake_location Qt6::qmake IMPORTED_LOCATION)
+elseif(WIN32 AND QT_VERSION_MAJOR EQUAL 5)
+    get_target_property(_qt_qmake_location Qt5::qmake IMPORTED_LOCATION)
+endif()
+
+if(WIN32 AND _qt_qmake_location)
+    execute_process(
+        COMMAND "${_qt_qmake_location}" -query QT_INSTALL_PREFIX
+        RESULT_VARIABLE return_code
+        OUTPUT_VARIABLE qt_install_prefix
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    
+    set(windeployqt_location "${qt_install_prefix}/bin/windeployqt.exe")
+    if(EXISTS "${windeployqt_location}")
+        add_custom_command(TARGET LogReader POST_BUILD
+            COMMAND "${windeployqt_location}" --release --no-translations "$<TARGET_FILE:LogReader>"
+            COMMENT "Deploy Qt libraries"
+        )
+    endif()
+endif()
