@@ -1,2 +1,204 @@
-/.vscode
-/build
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Qt-es
+/.qmake.cache
+/.qmake.stash
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.qmlc
+*.jsc
+Makefile*
+*build-*
+
+# Qt unit tests
+target_wrapper.*
+
+# QtCreator
+*.autosave
+
+# QtCreator Qml
+*.qmlproject.user
+*.qmlproject.user.*
+
+# QtCreator CMake
+CMakeLists.txt.user*
+
+# QtCreator 4.8< compilation database 
+compile_commands.json
+
+# QtCreator local machine specific files for imported projects
+*creator.user*
+
+# IntelliJ
+*.iml
+.idea/
+
+# VS Code
+.vscode/
+
+# CMake
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+out/
+build/
+debug/
+release/
+
+# CI/CD artifacts
+.github/workflows/*.log
+coverage/
+coverage.info
+coverage_html/
+*.gcov
+*.gcda
+*.gcno
+*.profdata
+
+# Code analysis reports
+cppcheck-report.xml
+clang-tidy-report.txt
+complexity-report.txt
+format-report.txt
+quality-summary.md
+
+# Documentation generation
+docs/api/
+docs/html/
+docs/latex/
+site/
+Doxyfile.bak
+
+# Test outputs
+test_results/
+test-reports/
+*.junit.xml
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# Package managers
+conan.lock
+vcpkg_installed/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# Logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+node_modules/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+
+# Project specific
+translations/*.qm
+*.qm
+
+# IDE specific
+*.pro.user*
+*.vcxproj.user
+*.vcxproj.filters
+
+# Archive files
+*.tar.gz
+*.zip
+*.7z
+*.rar
+
+# Installer packages
+*.msi
+*.dmg
+*.pkg
+*.deb
+*.rpm
+*.AppImage
+
+# Cache and temp directories
+.cache/
+tmp/
+temp/

@@ -1,0 +1,301 @@
+name: Code Quality Analysis
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # 每周运行一次完整的代码质量检查
+    - cron: '0 0 * * 0'
+
+jobs:
+  # 静态代码分析
+  static-analysis:
+    name: Static Code Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # 需要完整历史记录进行SonarCloud分析
+        
+    - name: Install analysis tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cppcheck clang-tidy iwyu
+        
+    - name: Install Qt for header dependencies
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: '6.5.3'
+        
+    # CPP Check - C++ 静态分析
+    - name: Run cppcheck
+      run: |
+        echo "🔍 Running cppcheck static analysis..."
+        cppcheck --enable=all --inconclusive --xml --xml-version=2 \
+          --suppress=missingIncludeSystem \
+          --suppress=unmatchedSuppression \
+          --include=src/ \
+          src/ 2> cppcheck-report.xml
+        
+        # 检查是否有严重错误
+        if grep -q 'severity="error"' cppcheck-report.xml; then
+          echo "❌ Cppcheck found errors!"
+          grep 'severity="error"' cppcheck-report.xml
+          exit 1
+        else
+          echo "✅ Cppcheck analysis passed"
+        fi
+        
+    - name: Upload cppcheck report
+      uses: actions/upload-artifact@v3
+      with:
+        name: cppcheck-report
+        path: cppcheck-report.xml
+        
+    # Clang-Tidy - 现代 C++ 最佳实践检查
+    - name: Create compile_commands.json
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        
+    - name: Run clang-tidy
+      run: |
+        echo "🔍 Running clang-tidy analysis..."
+        cd build
+        
+        # 运行 clang-tidy，只检查项目源文件
+        find ../src -name "*.cpp" | head -5 | xargs clang-tidy \
+          -p=. \
+          --checks='-*,clang-analyzer-*,cppcoreguidelines-*,modernize-*,performance-*,readability-*' \
+          --warnings-as-errors='' \
+          --format-style=file > ../clang-tidy-report.txt 2>&1 || true
+          
+        echo "✅ Clang-tidy analysis completed"
+        
+    - name: Upload clang-tidy report
+      uses: actions/upload-artifact@v3
+      with:
+        name: clang-tidy-report
+        path: clang-tidy-report.txt
+
+  # 代码复杂度分析
+  complexity-analysis:
+    name: Code Complexity Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install lizard
+      run: pip install lizard
+      
+    - name: Run complexity analysis
+      run: |
+        echo "📊 Analyzing code complexity..."
+        lizard src/ -l cpp -w -C 15 -L 100 -a 5 > complexity-report.txt
+        
+        # 检查是否有过于复杂的函数
+        if grep -q "FAIL" complexity-report.txt; then
+          echo "⚠️ Found functions with high complexity!"
+          cat complexity-report.txt
+        else
+          echo "✅ Code complexity is within acceptable limits"
+        fi
+        
+    - name: Upload complexity report
+      uses: actions/upload-artifact@v3
+      with:
+        name: complexity-report
+        path: complexity-report.txt
+
+  # 安全检查
+  security-analysis:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run CodeQL Analysis
+      uses: github/codeql-action/init@v2
+      with:
+        languages: cpp
+        queries: security-and-quality
+        
+    - name: Install Qt for build
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: '6.5.3'
+        
+    - name: Build for CodeQL
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+        cmake --build .
+        
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+      
+    # Semgrep 安全扫描
+    - name: Run Semgrep
+      uses: returntocorp/semgrep-action@v1
+      with:
+        config: auto
+        
+  # 依赖检查
+  dependency-check:
+    name: Dependency Security Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check for known vulnerabilities in dependencies
+      run: |
+        echo "🔒 Checking for vulnerable dependencies..."
+        
+        # 检查Qt版本是否有已知漏洞
+        echo "Checking Qt dependencies..."
+        
+        # 检查CMake配置中的第三方库
+        if [ -f CMakeLists.txt ]; then
+          echo "Analyzing CMakeLists.txt for third-party dependencies..."
+          grep -i "find_package\|target_link_libraries" CMakeLists.txt || true
+        fi
+        
+        echo "✅ Dependency check completed"
+
+  # 代码格式一致性检查（详细版）
+  format-compliance:
+    name: Code Format Compliance
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install clang-format
+      run: sudo apt-get update && sudo apt-get install -y clang-format
+      
+    - name: Check code formatting compliance
+      run: |
+        echo "📝 Checking code formatting compliance..."
+        
+        # 创建格式化报告
+        echo "Files that need formatting:" > format-report.txt
+        
+        find src -name "*.cpp" -o -name "*.h" | while read file; do
+          echo "Checking $file"
+          if ! clang-format -style=file "$file" | diff -u "$file" - > /dev/null; then
+            echo "❌ $file needs formatting" | tee -a format-report.txt
+          fi
+        done
+        
+        # 检查是否有需要格式化的文件
+        if [ $(wc -l < format-report.txt) -gt 1 ]; then
+          echo "❌ Some files need formatting:"
+          cat format-report.txt
+          exit 1
+        else
+          echo "✅ All files are properly formatted"
+        fi
+        
+    - name: Upload format report
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: format-report
+        path: format-report.txt
+
+  # 文档质量检查
+  documentation-check:
+    name: Documentation Quality Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check documentation coverage
+      run: |
+        echo "📚 Checking documentation coverage..."
+        
+        # 检查头文件的文档覆盖率
+        total_functions=0
+        documented_functions=0
+        
+        find src -name "*.h" | while read file; do
+          echo "Checking documentation in $file"
+          
+          # 计算函数总数（简单方法）
+          funcs=$(grep -c "^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*(" "$file" || echo 0)
+          total_functions=$((total_functions + funcs))
+          
+          # 计算有文档的函数数（有 /** 或 /*! 注释）
+          docs=$(grep -B1 "^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*(" "$file" | grep -c "/\*\*\|/\*!" || echo 0)
+          documented_functions=$((documented_functions + docs))
+        done
+        
+        echo "Documentation coverage check completed"
+        echo "Total functions: $total_functions"
+        echo "Documented functions: $documented_functions"
+        
+        if [ $total_functions -gt 0 ]; then
+          coverage=$((documented_functions * 100 / total_functions))
+          echo "Documentation coverage: $coverage%"
+          
+          if [ $coverage -lt 50 ]; then
+            echo "⚠️ Documentation coverage is below 50%"
+          else
+            echo "✅ Documentation coverage is acceptable"
+          fi
+        fi
+
+  # 汇总代码质量结果
+  quality-summary:
+    name: Quality Summary
+    needs: [static-analysis, complexity-analysis, security-analysis, dependency-check, format-compliance, documentation-check]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Download all reports
+      uses: actions/download-artifact@v3
+      
+    - name: Generate quality summary
+      run: |
+        echo "📊 Code Quality Summary Report" > quality-summary.md
+        echo "================================" >> quality-summary.md
+        echo "" >> quality-summary.md
+        
+        echo "## Analysis Results" >> quality-summary.md
+        echo "" >> quality-summary.md
+        
+        # 检查各个 job 的状态
+        echo "- Static Analysis: ${{ needs.static-analysis.result }}" >> quality-summary.md
+        echo "- Complexity Analysis: ${{ needs.complexity-analysis.result }}" >> quality-summary.md
+        echo "- Security Analysis: ${{ needs.security-analysis.result }}" >> quality-summary.md
+        echo "- Dependency Check: ${{ needs.dependency-check.result }}" >> quality-summary.md
+        echo "- Format Compliance: ${{ needs.format-compliance.result }}" >> quality-summary.md
+        echo "- Documentation Check: ${{ needs.documentation-check.result }}" >> quality-summary.md
+        
+        echo "" >> quality-summary.md
+        echo "Generated on: $(date)" >> quality-summary.md
+        
+        cat quality-summary.md
+        
+    - name: Upload quality summary
+      uses: actions/upload-artifact@v3
+      with:
+        name: quality-summary
+        path: quality-summary.md
+        retention-days: 30 

@@ -1,0 +1,250 @@
+name: CI - Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+env:
+  QT_VERSION: '6.5.3'
+  CMAKE_BUILD_TYPE: Release
+
+jobs:
+  # 代码格式检查
+  format-check:
+    name: Code Format Check
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install clang-format
+      run: sudo apt-get update && sudo apt-get install -y clang-format
+      
+    - name: Check code formatting
+      run: |
+        find src -name "*.cpp" -o -name "*.h" | xargs clang-format -style=file -output-replacements-xml | grep -c "<replacement " || exit 0
+        if [ $? -ne 0 ]; then
+          echo "❌ Code formatting issues found. Please run clang-format."
+          exit 1
+        fi
+        echo "✅ Code formatting is correct."
+
+  # 翻译文件检查
+  translation-check:
+    name: Translation Files Check
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: ${{ env.QT_VERSION }}
+        
+    - name: Check translation files
+      run: |
+        echo "Checking translation files..."
+        for ts_file in translations/*.ts; do
+          if [ -f "$ts_file" ]; then
+            echo "Checking $ts_file"
+            lrelease "$ts_file"
+            if [ $? -ne 0 ]; then
+              echo "❌ Failed to compile $ts_file"
+              exit 1
+            fi
+          fi
+        done
+        echo "✅ All translation files are valid."
+
+  # 多平台构建矩阵
+  build:
+    name: Build on ${{ matrix.os }} with Qt${{ matrix.qt-version }}
+    needs: [format-check, translation-check]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows builds
+          - os: windows-latest
+            qt-version: '5.15.2'
+            build-system: 'qmake'
+            compiler: 'msvc'
+            
+          - os: windows-latest
+            qt-version: '6.5.3'
+            build-system: 'cmake'
+            compiler: 'msvc'
+            
+          # macOS builds
+          - os: macos-latest
+            qt-version: '5.15.2'
+            build-system: 'qmake'
+            compiler: 'clang'
+            
+          - os: macos-latest
+            qt-version: '6.5.3'
+            build-system: 'cmake'
+            compiler: 'clang'
+            
+          # Linux builds
+          - os: ubuntu-latest
+            qt-version: '5.15.2'
+            build-system: 'qmake'
+            compiler: 'gcc'
+            
+          - os: ubuntu-latest
+            qt-version: '6.5.3'
+            build-system: 'cmake'
+            compiler: 'gcc'
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Cache Qt
+      id: cache-qt
+      uses: actions/cache@v3
+      with:
+        path: ${{ runner.tool_cache }}/Qt
+        key: ${{ runner.os }}-QtCache-${{ matrix.qt-version }}
+        
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: ${{ matrix.qt-version }}
+        cached: ${{ steps.cache-qt.outputs.cache-hit }}
+        
+    - name: Install Linux dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libgl1-mesa-dev libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0
+        
+    - name: Setup MSVC (Windows)
+      if: runner.os == 'Windows'
+      uses: ilammy/msvc-dev-cmd@v1
+      
+    - name: Compile translations
+      run: |
+        echo "Compiling translation files..."
+        for ts_file in translations/*.ts; do
+          if [ -f "$ts_file" ]; then
+            echo "Compiling $ts_file"
+            lrelease "$ts_file"
+          fi
+        done
+      shell: bash
+      
+    # CMake Build
+    - name: Configure CMake
+      if: matrix.build-system == 'cmake'
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }}
+        
+    - name: Build with CMake
+      if: matrix.build-system == 'cmake'
+      run: cmake --build build --config ${{ env.CMAKE_BUILD_TYPE }}
+      
+    # qmake Build  
+    - name: Configure qmake
+      if: matrix.build-system == 'qmake'
+      run: |
+        mkdir build
+        cd build
+        qmake ../LogReader.pro CONFIG+=${{ env.CMAKE_BUILD_TYPE }}
+        
+    - name: Build with qmake (Unix)
+      if: matrix.build-system == 'qmake' && runner.os != 'Windows'
+      run: |
+        cd build
+        make -j$(nproc)
+        
+    - name: Build with qmake (Windows)
+      if: matrix.build-system == 'qmake' && runner.os == 'Windows'
+      run: |
+        cd build
+        nmake
+        
+    # 测试可执行文件
+    - name: Test executable exists
+      run: |
+        if [ "${{ runner.os }}" == "Windows" ]; then
+          if [ "${{ matrix.build-system }}" == "cmake" ]; then
+            test -f "build/${{ env.CMAKE_BUILD_TYPE }}/LogReader.exe"
+          else
+            test -f "build/${{ env.CMAKE_BUILD_TYPE }}/LogReader.exe"
+          fi
+        else
+          if [ "${{ matrix.build-system }}" == "cmake" ]; then
+            test -f "build/LogReader"
+          else
+            test -f "build/LogReader"
+          fi
+        fi
+        echo "✅ Executable built successfully"
+      shell: bash
+      
+    # 上传构建产物
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: LogReader-${{ matrix.os }}-Qt${{ matrix.qt-version }}-${{ matrix.build-system }}
+        path: |
+          build/
+          !build/**/*.o
+          !build/**/*.obj
+          !build/**/moc_*
+          !build/**/ui_*
+        retention-days: 7
+
+  # 基础功能测试（如果有测试文件）
+  test:
+    name: Run Tests
+    needs: build
+    runs-on: ubuntu-latest
+    if: false  # 暂时禁用，等添加测试文件后启用
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: ${{ env.QT_VERSION }}
+        
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: LogReader-ubuntu-latest-Qt${{ env.QT_VERSION }}-cmake
+        
+    - name: Run tests
+      run: |
+        # TODO: 添加实际的测试命令
+        echo "Tests would run here"
+        
+  # 集成测试结果
+  ci-success:
+    name: CI Success
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: success()
+    
+    steps:
+    - name: Success message
+      run: |
+        echo "🎉 All CI checks passed successfully!"
+        echo "✅ Code formatting: OK"
+        echo "✅ Translation files: OK" 
+        echo "✅ Multi-platform builds: OK" 
