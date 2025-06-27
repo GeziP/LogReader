@@ -1,56 +1,21 @@
-name: Windows Release
+name: Windows Build
 
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release version'
-        required: true
-        default: '1.0.0'
 
 env:
   QT_VERSION: '6.5.3'
-  CMAKE_BUILD_TYPE: 'Release'
 
 jobs:
-  create-release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.get_version.outputs.version }}
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Get version
-      id: get_version
-      run: |
-        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-          VERSION="${{ github.event.inputs.version }}"
-        else
-          VERSION=${GITHUB_REF#refs/tags/v}
-        fi
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-        
-    - name: Create Release
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        gh release create v${{ steps.get_version.outputs.version }} \
-          --title "LogReader v${{ steps.get_version.outputs.version }}" \
-          --notes "LogReader v${{ steps.get_version.outputs.version }} Windows Release"
-
-  build-windows:
-    name: Build Windows
-    needs: create-release
+  build:
+    name: Windows Build
     runs-on: windows-latest
     
     steps:
-    - name: Checkout code
+    - name: Checkout
       uses: actions/checkout@v4
       
     - name: Install Qt
@@ -58,58 +23,59 @@ jobs:
       with:
         version: ${{ env.QT_VERSION }}
         
-    - name: Setup MSVC
-      uses: microsoft/setup-msbuild@v1
-      
     - name: Compile translations
       run: |
         Get-ChildItem "translations\*.ts" | ForEach-Object {
+          Write-Host "Compiling $($_.Name)"
           lrelease $_.FullName
         }
         
-    - name: Build project
+    - name: Build
       run: |
         mkdir build
         cd build
-        cmake .. -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }}
-        cmake --build . --config ${{ env.CMAKE_BUILD_TYPE }}
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+        cmake --build . --config Release
         
-    - name: Deploy Qt dependencies
+    - name: Deploy Qt
       run: |
         cd build
         if (Test-Path "Release\LogReader.exe") {
           cd Release
-          windeployqt.exe --release --no-translations LogReader.exe
-          Copy-Item "..\..\translations\*.qm" "." -Force -ErrorAction SilentlyContinue
-          cd ..
+          windeployqt --release LogReader.exe
+          Copy-Item "..\..\translations\*.qm" . -ErrorAction SilentlyContinue
         } else {
-          windeployqt.exe --release --no-translations LogReader.exe
-          Copy-Item "..\translations\*.qm" "." -Force -ErrorAction SilentlyContinue
+          windeployqt --release LogReader.exe  
+          Copy-Item "..\translations\*.qm" . -ErrorAction SilentlyContinue
         }
         
-    - name: Create package
+    - name: Package
       run: |
-        $VERSION = "${{ needs.create-release.outputs.version }}"
-        $PACKAGE_NAME = "LogReader-$VERSION-Windows-x64-Portable"
+        # Get version from tag or use default
+        if ("${{ github.ref }}" -like "refs/tags/v*") {
+          $VERSION = "${{ github.ref }}".Replace("refs/tags/v", "")
+        } else {
+          $VERSION = "1.0.0"
+        }
         
-        New-Item -ItemType Directory -Path $PACKAGE_NAME -Force
+        $PACKAGE = "LogReader-$VERSION-Windows-Portable"
+        New-Item -ItemType Directory $PACKAGE -Force
         
         cd build
         if (Test-Path "Release") {
-          Copy-Item "Release\*" "..\$PACKAGE_NAME\" -Recurse -Force
+          Copy-Item "Release\*" "..\$PACKAGE\" -Recurse -Force
         } else {
-          Copy-Item "*" "..\$PACKAGE_NAME\" -Recurse -Force -Exclude @("CMakeFiles", "*.cmake")
+          Get-ChildItem . -Exclude "CMakeFiles","*.cmake","CMakeCache.txt" | Copy-Item -Destination "..\$PACKAGE\" -Recurse -Force
         }
         
         cd ..
-        Copy-Item "README.md" "$PACKAGE_NAME\" -Force -ErrorAction SilentlyContinue
-        Copy-Item "LICENSE" "$PACKAGE_NAME\" -Force -ErrorAction SilentlyContinue
+        Copy-Item "README.md" "$PACKAGE\" -ErrorAction SilentlyContinue
         
-        Compress-Archive -Path $PACKAGE_NAME -DestinationPath "$PACKAGE_NAME.zip"
+        Compress-Archive $PACKAGE "$PACKAGE.zip"
+        Write-Host "Created: $PACKAGE.zip"
         
-    - name: Upload package
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        $VERSION = "${{ needs.create-release.outputs.version }}"
-        gh release upload v$VERSION "LogReader-$VERSION-Windows-x64-Portable.zip" 
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4.6.2
+      with:
+        name: LogReader-Windows
+        path: "*.zip" 
