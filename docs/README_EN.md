@@ -1,8 +1,8 @@
-# LogViewer - Professional Log Analysis Tool
+# LogReader - Professional Log Analysis Tool
 
 <div align="center">
 
-![LogViewer](screenshot.png)
+![LogReader](screenshot.png)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Qt](https://img.shields.io/badge/Qt-5.x%2B-green.svg)](https://www.qt.io/)
@@ -20,7 +20,7 @@
 ### 🎯 Core Features
 | Feature | Description | Status |
 |---------|-------------|--------|
-| 📄 **Large File Support** | Efficiently handles GB-sized log files without performance degradation | ✅ |
+| 📄 **Large File Support** | Efficiently handles GB-sized log files | ✅ |
 | ⏰ **Time Range Filtering** | Precise time period selection for quick key log location | ✅ |
 | 🏷️ **Multi-dimensional Filtering** | Support for log level, module name and other multiple filter conditions | ✅ |
 | 🔍 **Real-time Search** | Keyword highlighting and quick navigation to target logs | ✅ |
@@ -32,8 +32,8 @@
 | 📤 **Multi-format Export** | Support for TXT, CSV, JSON formats to meet different needs | ✅ |
 | 🧠 **Smart Memory** | Remember last paths, export locations and format selections | ✅ |
 | 🎛️ **Batch Export** | One-click export to multiple formats for improved efficiency | ✅ |
-| 🌐 **Multi-encoding Support** | Perfect support for UTF-8, GBK and other character encodings | ✅ |
-| 🎨 **Responsive UI** | Adaptive layout with hideable filter areas to maximize viewing space | ✅ |
+| 🌐 **Multi-encoding Support** | Support for UTF-8, GBK and other character encodings | ✅ |
+
 
 ## 📸 Feature Showcase
 
@@ -88,8 +88,8 @@ File → Export Filtered Results → Select format and fields → Save
 #### 🪟 Windows
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/LogViewer.git
-cd LogViewer
+git clone https://github.com/yourusername/LogReader.git
+cd LogReader
 
 # Open LogReader.pro file with Qt Creator
 # Or build using command line:
@@ -104,8 +104,8 @@ sudo apt update
 sudo apt install qt5-default qttools5-dev cmake build-essential
 
 # Build project
-git clone https://github.com/yourusername/LogViewer.git
-cd LogViewer
+git clone https://github.com/yourusername/LogReader.git
+cd LogReader
 mkdir build && cd build
 cmake ..
 make -j$(nproc)
@@ -117,8 +117,8 @@ make -j$(nproc)
 brew install qt5
 
 # Build project
-git clone https://github.com/yourusername/LogViewer.git
-cd LogViewer
+git clone https://github.com/yourusername/LogReader.git
+cd LogReader
 mkdir build && cd build
 cmake ..
 make -j$(sysctl -n hw.ncpu)
@@ -127,7 +127,7 @@ make -j$(sysctl -n hw.ncpu)
 ## 💡 Usage Tips
 
 ### 🔧 Supported Log Formats
-LogViewer supports the following standard log formats:
+LogReader supports the following standard log formats:
 ```
 [2025-06-27 08:36:19.123] [INFO] [ModuleName] : Log content
 [2025-06-27 08:36:19] [ERROR] [Database] : Connection failed
@@ -169,10 +169,9 @@ LogReader/
 ```
 
 ### Technology Stack
-- **UI Framework**: Qt 5.x (Widgets)
+- **UI Framework**: Qt 5.x/6.x (Widgets)
 - **Build System**: qmake / CMake
 - **Programming Language**: C++17
-- **Design Patterns**: Singleton, Observer
 
 ### Contributing Guidelines
 1. 🍴 Fork the repository
@@ -194,7 +193,7 @@ This project is licensed under the MIT License - see the [LICENSE](../LICENSE) f
 ## 📞 Contact
 
 - 📧 Email: [shapigege@gmail.com](mailto:shapigege@gmail.com)
-- 🐙 GitHub: [Project Repository](https://github.com/yourusername/LogViewer)
+- 🐙 GitHub: [Project Repository](https://github.com/yourusername/LogReader)
 - 🌟 If this project helps you, please give it a Star ⭐
 
 ---

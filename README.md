@@ -1,8 +1,8 @@
-# LogViewer - 专业日志分析工具
+# LogReader - 专业日志分析工具
 
 <div align="center">
 
-![LogViewer](docs/screenshot.png)
+![LogReader](docs/screenshot.png)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Qt](https://img.shields.io/badge/Qt-5.x%2B-green.svg)](https://www.qt.io/)
@@ -20,7 +20,7 @@
 ### 🎯 核心功能
 | 功能 | 描述 | 状态 |
 |------|------|------|
-| 📄 **大文件支持** | 高效处理GB级大型日志文件，无性能衰减 | ✅ |
+| 📄 **大文件支持** | 高效处理GB级大型日志文件 | ✅ |
 | ⏰ **时间范围筛选** | 精确选择时间段，快速定位关键日志 | ✅ |
 | 🏷️ **多维度筛选** | 支持日志等级、模块名称等多重筛选条件 | ✅ |
 | 🔍 **实时搜索** | 关键词高亮显示，快速导航到目标日志 | ✅ |
@@ -32,8 +32,8 @@
 | 📤 **多格式导出** | 支持TXT、CSV、JSON格式，满足不同需求 | ✅ |
 | 🧠 **智能记忆** | 记住上次路径、导出位置和格式选择 | ✅ |
 | 🎛️ **批量导出** | 一键导出多种格式，提升工作效率 | ✅ |
-| 🌐 **多编码支持** | 完美支持UTF-8、GBK等多种字符编码 | ✅ |
-| 🎨 **响应式UI** | 自适应布局，可隐藏筛选区域最大化查看空间 | ✅ |
+| 🌐 **多编码支持** | 支持UTF-8、GBK等多种字符编码 | ✅ |
+
 
 ## 📸 功能展示
 
@@ -90,8 +90,8 @@
 #### 🪟 Windows
 ```bash
 # 克隆仓库
-git clone https://github.com/yourusername/LogViewer.git
-cd LogViewer
+git clone https://github.com/yourusername/LogReader.git
+cd LogReader
 
 # 使用Qt Creator打开LogReader.pro文件
 # 或者使用命令行构建：
@@ -106,8 +106,8 @@ sudo apt update
 sudo apt install qt5-default qttools5-dev cmake build-essential
 
 # 构建项目
-git clone https://github.com/yourusername/LogViewer.git
-cd LogViewer
+git clone https://github.com/yourusername/LogReader.git
+cd LogReader
 mkdir build && cd build
 cmake ..
 make -j$(nproc)
@@ -119,8 +119,8 @@ make -j$(nproc)
 brew install qt5
 
 # 构建项目
-git clone https://github.com/yourusername/LogViewer.git
-cd LogViewer
+git clone https://github.com/yourusername/LogReader.git
+cd LogReader
 mkdir build && cd build
 cmake ..
 make -j$(sysctl -n hw.ncpu)
@@ -129,7 +129,7 @@ make -j$(sysctl -n hw.ncpu)
 ## 💡 使用技巧
 
 ### 🔧 日志格式支持
-LogViewer支持以下标准日志格式：
+LogReader支持以下标准日志格式：
 ```
 [2025-06-27 08:36:19.123] [INFO] [ModuleName] : 日志内容
 [2025-06-27 08:36:19] [ERROR] [Database] : 连接失败
@@ -171,10 +171,9 @@ LogReader/
 ```
 
 ### 技术栈
-- **UI框架**: Qt 5.x (Widgets)
+- **UI框架**: Qt 5.x/6.x (Widgets)
 - **构建系统**: qmake / CMake
 - **编程语言**: C++17
-- **设计模式**: 单例模式、观察者模式
 
 ### 贡献指南
 1. 🍴 Fork本仓库
@@ -196,16 +195,16 @@ LogReader/
 ## 📞 联系方式
 
 - 📧 邮箱: [shapigege@gmail.com](mailto:shapigege@gmail.com)
-- 🐙 GitHub: [项目地址](https://github.com/yourusername/LogViewer)
+- 🐙 GitHub: [项目地址](https://github.com/yourusername/LogReader)
 - 🌟 如果这个项目对您有帮助，请给个Star ⭐
 
 ---
 
 <div align="center">
 
-**Made with ❤️ by LogViewer Team**
+**Made with ❤️ by LogReader Team**
 
-*专业的日志分析，从LogViewer开始*
+*专业的日志分析，从LogReader开始*
 
 </div>
 

@@ -1,0 +1,301 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+env:
+  QT_VERSION: '6.5.3'
+
+jobs:
+  # Windows构建任务
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    continue-on-error: true
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: ${{ env.QT_VERSION }}
+        
+    - name: Compile translations
+      run: |
+        Get-ChildItem "translations\*.ts" | ForEach-Object {
+          Write-Host "Compiling $($_.Name)"
+          lrelease $_.FullName
+        }
+        
+    - name: Build
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+        cmake --build . --config Release
+        
+    - name: Deploy Qt
+      run: |
+        cd build
+        if (Test-Path "Release\LogReader.exe") {
+          cd Release
+          windeployqt --release LogReader.exe
+          Copy-Item "..\..\translations\*.qm" . -ErrorAction SilentlyContinue
+        } else {
+          windeployqt --release LogReader.exe  
+          Copy-Item "..\translations\*.qm" . -ErrorAction SilentlyContinue
+        }
+        
+    - name: Package Windows
+      run: |
+        # Get version from tag
+        $VERSION = "${{ github.ref_name }}"
+        if ($VERSION -like "v*") {
+          $VERSION = $VERSION.Substring(1)
+        }
+        
+        $PACKAGE = "LogReader-$VERSION-Windows-x64"
+        New-Item -ItemType Directory $PACKAGE -Force
+        
+        cd build
+        if (Test-Path "Release") {
+          Copy-Item "Release\*" "..\$PACKAGE\" -Recurse -Force
+        } else {
+          Get-ChildItem . -Exclude "CMakeFiles","*.cmake","CMakeCache.txt","*.vcxproj*","*.sln" | Copy-Item -Destination "..\$PACKAGE\" -Recurse -Force
+        }
+        
+        cd ..
+        Copy-Item "README.md" "$PACKAGE\" -ErrorAction SilentlyContinue
+        
+        Compress-Archive $PACKAGE "$PACKAGE.zip"
+        Write-Host "Created: $PACKAGE.zip"
+        
+    - name: Upload Windows Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-build
+        path: "LogReader-*.zip"
+        retention-days: 7
+
+  # Linux构建任务  
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y cmake build-essential
+        
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: ${{ env.QT_VERSION }}
+        
+    - name: Compile translations
+      run: |
+        for ts_file in translations/*.ts; do
+          echo "Compiling $ts_file"
+          lrelease "$ts_file"
+        done
+        
+    - name: Build
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+        make -j$(nproc)
+        
+    - name: Package Linux
+      run: |
+        # Get version from tag
+        VERSION="${{ github.ref_name }}"
+        if [[ $VERSION == v* ]]; then
+          VERSION=${VERSION#v}
+        fi
+        
+        PACKAGE="LogReader-$VERSION-Linux-x64"
+        mkdir -p $PACKAGE
+        
+        # Copy executable and translations
+        cp build/LogReader $PACKAGE/
+        cp translations/*.qm $PACKAGE/ 2>/dev/null || true
+        cp README.md $PACKAGE/
+        
+        # Create simple run script
+        cat > $PACKAGE/run.sh << 'EOF'
+#!/bin/bash
+export QT_QPA_PLATFORM_PLUGIN_PATH="."
+./LogReader "$@"
+EOF
+        chmod +x $PACKAGE/run.sh
+        
+        tar -czf $PACKAGE.tar.gz $PACKAGE
+        echo "Created: $PACKAGE.tar.gz"
+        
+    - name: Upload Linux Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-build
+        path: "LogReader-*.tar.gz"
+        retention-days: 7
+
+  # macOS构建任务
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+    continue-on-error: true
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: ${{ env.QT_VERSION }}
+        
+    - name: Compile translations
+      run: |
+        for ts_file in translations/*.ts; do
+          echo "Compiling $ts_file"
+          lrelease "$ts_file"
+        done
+        
+    - name: Build
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+        make -j$(sysctl -n hw.ncpu)
+        
+    - name: Deploy Qt
+      run: |
+        cd build
+        macdeployqt LogReader.app
+        cp ../translations/*.qm LogReader.app/Contents/Resources/ 2>/dev/null || true
+        
+    - name: Package macOS
+      run: |
+        # Get version from tag
+        VERSION="${{ github.ref_name }}"
+        if [[ $VERSION == v* ]]; then
+          VERSION=${VERSION#v}
+        fi
+        
+        PACKAGE="LogReader-$VERSION-macOS-universal"
+        mkdir -p $PACKAGE
+        
+        cp -R build/LogReader.app $PACKAGE/
+        cp README.md $PACKAGE/
+        
+        # Create DMG using built-in tools
+        hdiutil create -srcfolder $PACKAGE -volname "LogReader $VERSION" $PACKAGE.dmg
+        echo "Created: $PACKAGE.dmg"
+        
+    - name: Upload macOS Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-build
+        path: "LogReader-*.dmg"
+        retention-days: 7
+
+  # 创建Release任务
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build-windows, build-linux, build-macos]
+    if: always() && (needs.build-windows.result == 'success' || needs.build-linux.result == 'success' || needs.build-macos.result == 'success')
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+        
+    - name: Prepare release assets
+      run: |
+        mkdir -p release-assets
+        find artifacts -name "*.zip" -o -name "*.tar.gz" -o -name "*.dmg" | while read file; do
+          echo "Found asset: $file"
+          cp "$file" release-assets/
+        done
+        
+        ls -la release-assets/
+        
+    - name: Generate release notes
+      run: |
+        # Get version from tag
+        VERSION="${{ github.ref_name }}"
+        if [[ $VERSION == v* ]]; then
+          VERSION=${VERSION#v}
+        fi
+        
+        # Create release notes
+        cat > release-notes.md << EOF
+        # LogReader $VERSION
+        
+        ## 📦 可用平台
+        EOF
+        
+        # Check which platforms are available
+        if [[ -f artifacts/windows-build/*.zip ]]; then
+          echo "- ✅ **Windows** - 便携版ZIP包" >> release-notes.md
+        else
+          echo "- ❌ **Windows** - 构建失败" >> release-notes.md
+        fi
+        
+        if [[ -f artifacts/linux-build/*.tar.gz ]]; then
+          echo "- ✅ **Linux** - tar.gz压缩包" >> release-notes.md
+        else
+          echo "- ❌ **Linux** - 构建失败" >> release-notes.md
+        fi
+        
+        if [[ -f artifacts/macos-build/*.dmg ]]; then
+          echo "- ✅ **macOS** - DMG安装包" >> release-notes.md
+        else
+          echo "- ❌ **macOS** - 构建失败" >> release-notes.md
+        fi
+        
+        cat >> release-notes.md << 'EOF'
+        
+        ## 🚀 如何使用
+        
+        1. 根据您的操作系统下载对应的安装包
+        2. Windows: 解压ZIP文件，运行LogReader.exe
+        3. Linux: 解压tar.gz文件，运行./run.sh
+        4. macOS: 打开DMG文件，拖拽LogReader.app到应用程序文件夹
+        
+        ## 📝 更新内容
+        
+        详见提交记录中的更改。
+        
+        ## 🐛 问题反馈
+        
+        如遇到问题，请在GitHub Issues中反馈。
+        EOF
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: LogReader ${{ github.ref_name }}
+        body_path: release-notes.md
+        files: release-assets/*
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

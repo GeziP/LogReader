@@ -74,11 +74,13 @@ graph TD
 
 ```
 .github/workflows/
-├── ci.yml              # 主CI流程 - 构建和测试
-├── code-quality.yml    # 代码质量检查
-├── release.yml         # 发布流程 - 打包和发布
-└── docs.yml           # 文档生成和发布
+└── release.yml         # 自动发布流程 - 多平台构建和发布
 ```
+
+**当前已实现的工作流：**
+- ✅ **release.yml** - 完整的多平台自动发布流程
+- 🔄 **ci.yml** - 日常CI流程 (规划中)
+- 🔄 **code-quality.yml** - 代码质量检查 (规划中)
 
 ## ⚙️ 详细配置
 
@@ -131,26 +133,32 @@ strategy:
 - ⚠️ **警告级别**：代码复杂度 > 15、函数长度 > 100行
 - ✅ **通过标准**：格式规范、文档覆盖率 > 50%
 
-### 3. 发布流程 (release.yml)
+### 自动发布流程 (release.yml)
 
 **触发条件：**
 - 推送版本标签 (`v*`)
 - 手动触发 (workflow_dispatch)
+
+**容错设计：**
+- 各平台独立构建，互不影响
+- 使用 `continue-on-error: true` 允许部分失败
+- 至少一个平台成功即可创建Release
 
 **打包产物：**
 
 | 平台 | 格式 | 说明 |
 |------|------|------|
 | **Windows** | ZIP (便携版) | 包含所有依赖的免安装版本 |
-| **macOS** | DMG | 标准macOS安装包 |
-| **Linux** | AppImage | 通用Linux可执行镜像 |
+| **macOS** | DMG | 标准macOS磁盘镜像安装包 |
+| **Linux** | tar.gz | 压缩包含运行脚本 |
 
 **发布流程：**
-1. 🏷️ 创建GitHub Release
-2. 📦 多平台并行构建
-3. 🔧 依赖打包 (windeployqt/macdeployqt/linuxdeployqt)
-4. ⬆️ 自动上传Release资产
-5. 📢 发布通知
+1. 🏗️ 多平台并行构建 (Windows/Linux/macOS)
+2. 📦 依赖打包 (windeployqt/macdeployqt)
+3. ⬆️ 上传构建产物为artifacts
+4. 🏷️ 智能创建GitHub Release
+5. 📝 自动生成Release描述
+6. 🚀 发布可用平台的安装包
 
 ### 4. 文档生成 (docs.yml)
 
@@ -195,9 +203,27 @@ git tag -a v1.0.0 -m "Release version 1.0.0"
 git push origin v1.0.0
 ```
 
-2. **自动发布**
+2. **自动发布过程**
 - Release workflow自动触发
-- 多平台包自动构建
+- 多平台并行构建（Windows/Linux/macOS）
+- 构建成功的平台自动上传到GitHub Release
+- 即使部分平台失败，其他成功的平台仍会发布
+
+3. **检查发布结果**
+- 前往GitHub仓库的 **Releases** 页面
+- 查看新创建的Release和可用的下载文件
+- Release描述会显示各平台的构建状态
+
+4. **手动重新触发**
+如果需要重新构建某个版本：
+```bash
+# 在GitHub Actions页面手动触发workflow_dispatch
+# 或者删除tag后重新创建
+git tag -d v1.0.0
+git push origin :refs/tags/v1.0.0
+git tag -a v1.0.0 -m "Release version 1.0.0"
+git push origin v1.0.0
+```
 - GitHub Release自动创建
 - 发布资产自动上传
 
