@@ -6,6 +6,10 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+  actions: read
+
 env:
   QT_VERSION: '6.5.3'
 
@@ -284,7 +288,7 @@ jobs:
         echo "如遇到问题，请在GitHub Issues中反馈。" >> release-notes.md
         
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ github.ref_name }}
         name: LogReader ${{ github.ref_name }}
@@ -292,5 +296,7 @@ jobs:
         files: release-assets/*
         draft: false
         prerelease: false
+        fail_on_unmatched_files: false
+        generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
