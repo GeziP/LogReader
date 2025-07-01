@@ -133,11 +133,9 @@ jobs:
         cp README.md $PACKAGE/
         
         # Create simple run script
-        cat > $PACKAGE/run.sh << 'EOF'
-#!/bin/bash
-export QT_QPA_PLATFORM_PLUGIN_PATH="."
-./LogReader "$@"
-EOF
+        echo '#!/bin/bash' > $PACKAGE/run.sh
+        echo 'export QT_QPA_PLATFORM_PLUGIN_PATH="."' >> $PACKAGE/run.sh
+        echo './LogReader "$@"' >> $PACKAGE/run.sh
         chmod +x $PACKAGE/run.sh
         
         tar -czf $PACKAGE.tar.gz $PACKAGE
@@ -244,12 +242,10 @@ EOF
           VERSION=${VERSION#v}
         fi
         
-        # Create release notes
-        cat > release-notes.md << EOF
-        # LogReader $VERSION
-        
-        ## 📦 可用平台
-        EOF
+        # Create release notes using echo
+        echo "# LogReader $VERSION" > release-notes.md
+        echo "" >> release-notes.md
+        echo "## 📦 可用平台" >> release-notes.md
         
         # Check which platforms are available
         if [[ -f artifacts/windows-build/*.zip ]]; then
@@ -270,23 +266,22 @@ EOF
           echo "- ❌ **macOS** - 构建失败" >> release-notes.md
         fi
         
-        cat >> release-notes.md << 'EOF'
-        
-        ## 🚀 如何使用
-        
-        1. 根据您的操作系统下载对应的安装包
-        2. Windows: 解压ZIP文件，运行LogReader.exe
-        3. Linux: 解压tar.gz文件，运行./run.sh
-        4. macOS: 打开DMG文件，拖拽LogReader.app到应用程序文件夹
-        
-        ## 📝 更新内容
-        
-        详见提交记录中的更改。
-        
-        ## 🐛 问题反馈
-        
-        如遇到问题，请在GitHub Issues中反馈。
-        EOF
+        # Add usage instructions
+        echo "" >> release-notes.md
+        echo "## 🚀 如何使用" >> release-notes.md
+        echo "" >> release-notes.md
+        echo "1. 根据您的操作系统下载对应的安装包" >> release-notes.md
+        echo "2. Windows: 解压ZIP文件，运行LogReader.exe" >> release-notes.md
+        echo "3. Linux: 解压tar.gz文件，运行./run.sh" >> release-notes.md
+        echo "4. macOS: 打开DMG文件，拖拽LogReader.app到应用程序文件夹" >> release-notes.md
+        echo "" >> release-notes.md
+        echo "## 📝 更新内容" >> release-notes.md
+        echo "" >> release-notes.md
+        echo "详见提交记录中的更改。" >> release-notes.md
+        echo "" >> release-notes.md
+        echo "## 🐛 问题反馈" >> release-notes.md
+        echo "" >> release-notes.md
+        echo "如遇到问题，请在GitHub Issues中反馈。" >> release-notes.md
         
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
