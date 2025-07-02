@@ -50,6 +50,10 @@
 #include <QStyledItemDelegate>
 #include <QFontMetrics>
 #include <QDebug>
+#include <QDesktopServices>
+#include <QUrl>
+#include <QEvent>
+#include <QMouseEvent>
 
 /**
  * @brief Constructor for LogViewer main window
@@ -370,6 +374,15 @@ void LogViewer::setupUI()
     progressBar = new QProgressBar(this);
     progressBar->setVisible(false);
     statusBar()->addPermanentWidget(progressBar);
+    
+    // Create GitHub link label
+    githubLinkLabel = new QLabel(this);
+    githubLinkLabel->setText("⭐ GitHub");
+    githubLinkLabel->setStyleSheet("color: #0969da; text-decoration: underline; cursor: pointer; padding: 2px 6px;");
+    githubLinkLabel->setToolTip(tr("点击访问GitHub项目页面并给我们点赞"));
+    githubLinkLabel->installEventFilter(this);
+    statusBar()->addPermanentWidget(githubLinkLabel);
+    
     statusBar()->showMessage(tr("就绪"));
 
 }
@@ -1032,5 +1045,27 @@ void LogViewer::retranslateUI()
     update();
     repaint(); // Force redraw
     
+    // Update GitHub link text and tooltip
+    if (githubLinkLabel) {
+        githubLinkLabel->setToolTip(tr("点击访问GitHub项目页面并给我们点赞"));
+    }
+    
     qDebug() << "=== UI Retranslation Completed ===";
+}
+
+bool LogViewer::eventFilter(QObject *obj, QEvent *event)
+{
+    if (obj == githubLinkLabel && event->type() == QEvent::MouseButtonPress) {
+        QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
+        if (mouseEvent->button() == Qt::LeftButton) {
+            onGitHubLinkClicked();
+            return true;
+        }
+    }
+    return QMainWindow::eventFilter(obj, event);
+}
+
+void LogViewer::onGitHubLinkClicked()
+{
+    QDesktopServices::openUrl(QUrl("https://github.com/GeziP/LogReader"));
 }

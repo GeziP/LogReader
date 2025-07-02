@@ -80,6 +80,15 @@ public:
      */
     LogViewer(QWidget *parent = nullptr);
 
+protected:
+    /**
+     * @brief Event filter for handling mouse clicks on GitHub link
+     * @param obj The object that received the event
+     * @param event The event that occurred
+     * @return true if the event was handled, false otherwise
+     */
+    bool eventFilter(QObject *obj, QEvent *event) override;
+
 private slots:
     // File operations
     /**
@@ -182,6 +191,14 @@ private slots:
      *          (e.g., through settings or other components).
      */
     void onLanguageManagerChanged(LanguageManager::Language language);
+    
+    // GitHub operations
+    /**
+     * @brief Handle GitHub link click
+     * @details Opens the project's GitHub page in the default browser
+     *          when the status bar GitHub link is clicked.
+     */
+    void onGitHubLinkClicked();
 
 private:
     // Core functionality methods
@@ -323,6 +340,9 @@ private:
     QLineEdit *searchLineEdit;           ///< Text input for search terms
     QPushButton *searchPreviousButton;   ///< Button to go to previous search result
     QPushButton *searchNextButton;       ///< Button to go to next search result
+    
+    // UI Controls - GitHub link
+    QLabel *githubLinkLabel;             ///< Clickable GitHub link in status bar
     
     // Data storage
     QList<LogEntry> allLogs;             ///< Complete list of loaded log entries
