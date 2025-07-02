@@ -15,7 +15,7 @@ body:
       label: 确认事项 / Confirmation
       options:
         - label: 我已阅读README文档 / I have read the README documentation
-          required: true
+          required: false
         - label: 我已搜索现有issues查看是否有类似问题 / I have searched existing issues for similar questions
           required: true
 

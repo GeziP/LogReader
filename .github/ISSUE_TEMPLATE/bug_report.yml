@@ -18,7 +18,7 @@ body:
         - label: 我已搜索现有issues，确认这是新问题 / I have searched existing issues and confirmed this is a new issue
           required: true
         - label: 我使用的是最新版本 / I am using the latest version
-          required: true
+          required: false
 
   - type: dropdown
     id: operating-system
