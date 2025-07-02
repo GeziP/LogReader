@@ -18,7 +18,7 @@ body:
         - label: 我已搜索现有issues，确认这是新的功能请求 / I have searched existing issues and confirmed this is a new feature request
           required: true
         - label: 这个功能与LogReader的核心用途相关 / This feature is related to LogReader's core purpose
-          required: true
+          required: false
 
   - type: dropdown
     id: category
