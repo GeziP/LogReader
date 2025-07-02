@@ -48,7 +48,8 @@ else()
 endif()
 
 # 创建可执行文件（必须在使用目标之前定义）
-add_executable(LogReader ${SOURCES} ${HEADERS} ${RESOURCE_FILE} ${UI_FILES} ${TS_FILES})
+# 添加WIN32标志隐藏控制台窗口
+add_executable(LogReader WIN32 ${SOURCES} ${HEADERS} ${RESOURCE_FILE} ${UI_FILES} ${TS_FILES})
 
 # 设置包含目录
 target_include_directories(LogReader PRIVATE 
