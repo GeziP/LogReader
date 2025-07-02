@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 查看文档 / Documentation
+    url: https://github.com/GeziP/LogReader/blob/main/README.md
+    about: 查看完整的使用文档和构建指南 / View complete usage documentation and build guide
+  - name: 💬 讨论区 / Discussions
+    url: https://github.com/GeziP/LogReader/discussions
+    about: 参与社区讨论，分享使用经验 / Join community discussions and share experiences
+  - name: 🔧 构建指南 / Build Guide
+    url: https://github.com/GeziP/LogReader/blob/main/BUILD_CN.md
+    about: 查看详细的构建和开发指南 / View detailed build and development guide 

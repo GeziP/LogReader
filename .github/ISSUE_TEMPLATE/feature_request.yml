@@ -1,0 +1,124 @@
+name: ✨ 功能请求 / Feature Request
+description: 建议新功能或改进 / Suggest a new feature or improvement
+title: "[Feature] "
+labels: ["enhancement", "需要评估"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢您的建议！请详细描述您希望的功能。
+        Thank you for your suggestion! Please describe the feature you would like to see.
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: 确认事项 / Confirmation
+      description: 请确认您已完成以下检查 / Please confirm you have completed the following checks
+      options:
+        - label: 我已搜索现有issues，确认这是新的功能请求 / I have searched existing issues and confirmed this is a new feature request
+          required: true
+        - label: 这个功能与LogReader的核心用途相关 / This feature is related to LogReader's core purpose
+          required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: 功能类别 / Feature Category
+      description: 这个功能属于哪个类别 / Which category does this feature belong to
+      options:
+        - 文件处理 / File Processing
+        - 筛选和搜索 / Filtering and Search
+        - 导出功能 / Export Features
+        - 用户界面 / User Interface
+        - 性能优化 / Performance
+        - 国际化 / Internationalization
+        - 其他 / Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 问题描述 / Problem Description
+      description: 描述您遇到的问题或不便 / Describe the problem or inconvenience you're experiencing
+      placeholder: |
+        当前的困难或不便：
+        Current difficulties or inconveniences:
+        
+        例如：在处理大型日志文件时，需要等待很长时间才能看到筛选结果
+        e.g. When processing large log files, it takes a long time to see filtered results
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 期望的解决方案 / Desired Solution
+      description: 您希望如何解决这个问题 / How would you like to solve this problem
+      placeholder: |
+        详细描述您期望的功能：
+        Detailed description of the expected feature:
+        
+        - 功能如何工作 / How the feature should work
+        - 用户如何使用 / How users would use it
+        - 预期的效果 / Expected results
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 替代方案 / Alternative Solutions
+      description: 您考虑过的其他解决方案 / Other solutions you have considered
+      placeholder: |
+        - 当前的临时解决方案 / Current workarounds
+        - 其他可能的实现方式 / Other possible implementations
+        - 参考的软件或工具 / Reference software or tools
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 优先级 / Priority
+      description: 这个功能对您有多重要 / How important is this feature to you
+      options:
+        - 低 - 有了更好 / Low - Nice to have
+        - 中 - 会显著改善体验 / Medium - Would significantly improve experience
+        - 高 - 对我的工作很重要 / High - Important for my work
+        - 紧急 - 缺少此功能难以使用 / Critical - Difficult to use without this feature
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: 使用场景 / Use Case
+      description: 描述具体的使用场景 / Describe specific use cases
+      placeholder: |
+        具体的使用场景：
+        Specific use cases:
+        
+        1. 作为开发者，我希望...，这样我就能...
+        2. 当我在调试时，我需要...，因为...
+        
+        1. As a developer, I want..., so that I can...
+        2. When debugging, I need..., because...
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: 实现建议 / Implementation Suggestions
+      description: 如果您有技术实现的想法，请分享 / If you have ideas about technical implementation, please share
+      placeholder: |
+        - 可能的技术方案 / Possible technical approaches
+        - 参考资料或库 / Reference materials or libraries
+        - 界面设计想法 / UI design ideas
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 其他信息 / Additional Information
+      description: 任何其他相关信息 / Any other relevant information
+      placeholder: |
+        - 相关的截图或示例 / Related screenshots or examples
+        - 参考的其他软件 / Reference to other software
+        - 其他补充说明 / Other additional notes 
