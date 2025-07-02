@@ -58,4 +58,5 @@
 - ✅ 完成logviewer.h修改，添加GitHub链接相关声明和事件过滤器
 - ✅ 完成logviewer.cpp修改，实现状态栏GitHub链接UI和点击事件处理
 - ✅ 添加国际化支持，GitHub链接工具提示支持中英文切换
+- ✅ 修复编译错误：在logviewer.h中添加QLabel前向声明
 - 🚧 代码实现完成，等待测试验证 
