@@ -1,0 +1,110 @@
+name: 🐛 Bug报告 / Bug Report
+description: 报告软件中的问题或错误 / Report a bug or issue
+title: "[Bug] "
+labels: ["bug", "需要确认"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢您报告Bug！请填写以下信息帮助我们快速定位问题。
+        Thank you for reporting a bug! Please fill in the following information to help us locate the issue quickly.
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: 确认事项 / Confirmation
+      description: 请确认您已完成以下检查 / Please confirm you have completed the following checks
+      options:
+        - label: 我已搜索现有issues，确认这是新问题 / I have searched existing issues and confirmed this is a new issue
+          required: true
+        - label: 我使用的是最新版本 / I am using the latest version
+          required: true
+
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: 操作系统 / Operating System
+      description: 您使用的操作系统 / Your operating system
+      options:
+        - Windows 10
+        - Windows 11
+        - macOS (Intel)
+        - macOS (Apple Silicon)
+        - Linux (Ubuntu)
+        - Linux (Other)
+        - 其他 / Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: LogReader版本 / LogReader Version
+      description: 您使用的LogReader版本 / LogReader version you are using
+      placeholder: "例如: v1.0.0 / e.g. v1.0.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述 / Bug Description
+      description: 详细描述遇到的问题 / Detailed description of the issue
+      placeholder: |
+        请描述：
+        1. 您在做什么操作时遇到问题
+        2. 期望的行为是什么
+        3. 实际发生了什么
+        
+        Please describe:
+        1. What you were doing when the issue occurred
+        2. What you expected to happen
+        3. What actually happened
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 重现步骤 / Steps to Reproduce
+      description: 如何重现这个问题 / How to reproduce this issue
+      placeholder: |
+        1. 打开LogReader / Open LogReader
+        2. 点击 '...' / Click '...'
+        3. 看到错误 / See error
+      value: |
+        1. 
+        2. 
+        3. 
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志文件信息 / Log File Information
+      description: 如果问题与特定日志文件相关，请提供信息 / If the issue is related to a specific log file, please provide information
+      placeholder: |
+        - 文件大小 / File size: 
+        - 文件格式 / File format: 
+        - 日志来源 / Log source: 
+        - 是否可以提供示例文件 / Can you provide a sample file: 
+
+  - type: textarea
+    id: error-messages
+    attributes:
+      label: 错误信息 / Error Messages
+      description: 粘贴任何错误信息或截图 / Paste any error messages or screenshots
+      placeholder: |
+        请粘贴错误信息或上传截图
+        Please paste error messages or upload screenshots
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 其他信息 / Additional Information
+      description: 任何其他有用的信息 / Any other useful information
+      placeholder: |
+        - 问题出现频率 / Frequency of the issue
+        - 临时解决方案 / Workarounds if any
+        - 其他相关信息 / Other relevant information 

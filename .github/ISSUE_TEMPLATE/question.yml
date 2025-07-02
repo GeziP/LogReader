@@ -1,0 +1,123 @@
+name: ❓ 问题咨询 / Question
+description: 使用方面的疑问或需要帮助 / Questions about usage or need help
+title: "[Question] "
+labels: ["question", "需要回复"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        欢迎提问！我们很乐意帮助您解决使用中的问题。
+        Welcome to ask questions! We're happy to help you with any issues you encounter.
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: 确认事项 / Confirmation
+      options:
+        - label: 我已阅读README文档 / I have read the README documentation
+          required: true
+        - label: 我已搜索现有issues查看是否有类似问题 / I have searched existing issues for similar questions
+          required: true
+
+  - type: dropdown
+    id: question-type
+    attributes:
+      label: 问题类型 / Question Type
+      description: 您的问题属于哪个类别 / What category does your question belong to
+      options:
+        - 安装和配置 / Installation and Configuration
+        - 基本使用 / Basic Usage
+        - 高级功能 / Advanced Features
+        - 故障排除 / Troubleshooting
+        - 最佳实践 / Best Practices
+        - 其他 / Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: 操作系统 / Operating System
+      description: 您使用的操作系统 / Your operating system
+      options:
+        - Windows 10
+        - Windows 11
+        - macOS (Intel)
+        - macOS (Apple Silicon)
+        - Linux (Ubuntu)
+        - Linux (Other)
+        - 其他 / Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: LogReader版本 / LogReader Version
+      description: 您使用的LogReader版本（如果适用）/ LogReader version you are using (if applicable)
+      placeholder: "例如: v1.0.0 / e.g. v1.0.0"
+
+  - type: textarea
+    id: question
+    attributes:
+      label: 详细问题 / Detailed Question
+      description: 请详细描述您的问题或疑问 / Please describe your question or concern in detail
+      placeholder: |
+        请详细描述：
+        Please describe in detail:
+        
+        1. 您想要实现什么 / What you want to achieve
+        2. 遇到了什么困难 / What difficulties you encountered
+        3. 已经尝试了什么方法 / What methods you have already tried
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 使用场景 / Usage Context
+      description: 描述您的使用场景和环境 / Describe your usage scenario and environment
+      placeholder: |
+        - 处理的日志文件类型 / Type of log files you're processing
+        - 文件大小范围 / File size range
+        - 使用频率 / Usage frequency
+        - 工作环境 / Work environment
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果 / Expected Result
+      description: 您希望得到什么样的结果或解决方案 / What kind of result or solution do you expect
+      placeholder: |
+        描述您期望的结果：
+        Describe your expected result:
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: 已尝试的方法 / Methods Tried
+      description: 您已经尝试过哪些方法 / What methods have you already tried
+      placeholder: |
+        - 查看过的文档 / Documentation you've reviewed
+        - 尝试过的设置 / Settings you've tried
+        - 其他软件的对比 / Comparison with other software
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图或示例 / Screenshots or Examples
+      description: 如果有助于理解问题，请提供截图或示例 / If helpful for understanding the issue, please provide screenshots or examples
+      placeholder: |
+        - 相关截图 / Related screenshots
+        - 配置文件内容 / Configuration file contents
+        - 示例数据 / Sample data
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 其他信息 / Additional Information
+      description: 任何其他可能有用的信息 / Any other information that might be useful
+      placeholder: |
+        - 紧急程度 / Urgency level
+        - 项目背景 / Project background
+        - 其他相关工具 / Other related tools 
