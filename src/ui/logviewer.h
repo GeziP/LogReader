@@ -38,6 +38,7 @@ class QLineEdit;
 class QSplitter;
 class QModelIndex;
 class QHBoxLayout;
+class QLabel;
 QT_END_NAMESPACE
 
 /**
