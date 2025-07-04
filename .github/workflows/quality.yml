@@ -15,7 +15,21 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          # macOS arm64优先，若失败自动fallback
+          - os: macos-latest
+            qt_arch: clang_arm64
+            qt_modules: qtbase
+          - os: macos-latest
+            qt_arch: clang_64
+            qt_modules: qtbase
+          # 其他平台保持原有配置
+          - os: windows-latest
+            qt_arch: windows_x64
+            qt_modules: qtbase qtcharts qtwebengine
+          - os: ubuntu-latest
+            qt_arch: linux_x64
+            qt_modules: qtbase qtcharts qtwebengine
     steps:
       - uses: actions/checkout@v4
 
@@ -24,9 +38,8 @@ jobs:
         uses: jurplel/install-qt-action@v3
         with:
           version: ${{ env.QT_VERSION }}
-          modules: qtcharts qtwebengine
-          # 为macOS指定特定架构
-          arch: ${{ matrix.os == 'macos-latest' && 'clang_arm64' || '' }}
+          arch: ${{ matrix.qt_arch }}
+          modules: ${{ matrix.qt_modules }}
 
       # Install required tools per OS
       - name: Install dependencies (Linux)
