@@ -10,6 +10,7 @@ This guide explains the Continuous Integration (CI) and Continuous Deployment (C
 - [GitHub Actions Workflows](#github-actions-workflows)
 - [Release Process](#release-process)
 - [Troubleshooting](#troubleshooting)
+- [Local One-Click CI Check Script](#local-one-click-ci-check-script)
 
 ## Overview
 
@@ -182,4 +183,33 @@ If you encounter persistent issues:
 
 1. Check the detailed logs in GitHub Actions
 2. Search for similar issues in the project repository
-3. Create a new issue with detailed information about the problem 
+3. Create a new issue with detailed information about the problem
+
+## Local One-Click CI Check Script
+
+The project provides `scripts/auto_format_and_check.bat` for Windows, which performs code formatting, static analysis, translation file check, structure check, and CMake build test in one step, ensuring local and CI consistency.
+
+### Usage
+```bat
+cd scripts
+./auto_format_and_check.bat
+```
+Or from the project root:
+```bat
+scripts\auto_format_and_check.bat
+```
+
+### Environment Variables & Dependencies
+- The script automatically sets QT_ROOT, Qt5_DIR, CMAKE_PREFIX_PATH, and MinGW paths.
+- Requires local installation of: Qt (MinGW version), MinGW, CMake, clang-format, cppcheck, lrelease
+
+### Common Issues
+- **CMake cannot find Qt/MinGW**: The script sets environment variables, but if errors persist, check your actual install paths.
+- **g++ not detected**: Ensure MinGW is installed and the path is correct.
+- **Format/Static analysis/Translation check failed**: Fix your source code as prompted by the script output.
+- **Build failed**: First confirm you can build in Qt Creator, then use the script to verify.
+
+### Recommended Workflow
+1. Develop and debug in Qt Creator first.
+2. Run auto_format_and_check.bat before commit to ensure all checks pass.
+3. If all checks pass, push/PR and CI will succeed. 

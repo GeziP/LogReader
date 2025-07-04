@@ -440,6 +440,35 @@ file build/LogReader  # Linux/macOS
 - 🛡️ [C++安全编码指南](https://isocpp.github.io/CppCoreGuidelines/)
 - 📋 [Doxygen文档生成](https://www.doxygen.nl/manual/)
 
+## 本地一键CI检查脚本
+
+项目提供`scripts/auto_format_and_check.bat`，一键完成本地代码格式化、静态分析、翻译文件检查、结构检查和CMake构建测试，确保本地与CI一致。
+
+### 用法
+```bat
+cd scripts
+./auto_format_and_check.bat
+```
+或在项目根目录下：
+```bat
+scripts\auto_format_and_check.bat
+```
+
+### 环境变量与依赖
+- 自动设置QT_ROOT、Qt5_DIR、CMAKE_PREFIX_PATH、MinGW路径
+- 需本地已安装：Qt（MinGW版）、MinGW、CMake、clang-format、cppcheck、lrelease
+
+### 常见问题
+- **CMake找不到Qt/MinGW**：脚本已自动设置环境变量，仍报错请检查实际安装路径。
+- **g++未检测到**：请确认MinGW已安装并路径正确。
+- **格式化/静态分析/翻译检查失败**：请根据脚本输出修复源代码。
+- **构建失败**：请先用Qt Creator确认能正常编译，再用脚本验证。
+
+### 推荐流程
+1. 先用Qt Creator开发、调试。
+2. 提交前运行auto_format_and_check.bat，确保所有检查通过。
+3. 通过后再push/PR，CI必过。
+
 ---
 
 <div align="center">
