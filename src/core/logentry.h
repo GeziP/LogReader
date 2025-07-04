@@ -36,7 +36,7 @@
  * entry.timestamp = QDateTime::currentDateTime();
  * entry.level = "INFO";
  * entry.module = "Application";
- * entry.content = "Application started successfully";
+ * entry.message = "Application started successfully";
  * @endcode
  */
 struct LogEntry {
@@ -71,7 +71,7 @@ struct LogEntry {
      *          actual information being logged. This is the primary
      *          content that users search through and analyze.
      */
-    QString content;
+    QString message;
 };
 
 #endif // LOGENTRY_H

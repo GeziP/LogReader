@@ -55,13 +55,11 @@ private:
 void TestLogEntry::initTestCase()
 {
     // 准备测试数据
-    sampleLogLines = {
-        "[2025-06-27 08:36:19.123] [INFO] [ModuleName] : 正常信息日志",
-        "[2025-06-27 08:36:20.456] [ERROR] [Database] : 数据库连接失败",
-        "[2025-06-27 08:36:21.789] [WARN] [Network] : 网络延迟过高",
-        "[2025-06-27 08:36:22.012] [DEBUG] [Parser] : 解析详细信息",
-        "[2025-06-27 08:36:23.345] [TRACE] [Core] : 跟踪信息"
-    };
+    sampleLogLines.append("[2025-06-27 08:36:19.123] [INFO] [ModuleName] : 正常信息日志");
+    sampleLogLines.append("[2025-06-27 08:36:20.456] [ERROR] [Database] : 数据库连接失败");
+    sampleLogLines.append("[2025-06-27 08:36:21.789] [WARN] [Network] : 网络延迟过高");
+    sampleLogLines.append("[2025-06-27 08:36:22.012] [DEBUG] [Parser] : 解析详细信息");
+    sampleLogLines.append("[2025-06-27 08:36:23.345] [TRACE] [Core] : 跟踪信息");
     
     // 创建有效的测试条目
     validEntry.timestamp = QDateTime::fromString("2025-06-27 08:36:19.123", "yyyy-MM-dd hh:mm:ss.zzz");

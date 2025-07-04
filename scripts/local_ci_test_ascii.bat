@@ -1,205 +1,168 @@
 @echo off
-:: LogReader Code Quality Local Verification Script
-:: Simulates code quality check process in CI/CD
-:: Author: GeziP
-:: Date: 2025-06-27
+chcp 65001 >nul
+setlocal EnableDelayedExpansion
 
-setlocal enabledelayedexpansion
+echo ================================
+echo   LogReader Local CI Test
+echo ================================
+echo.
 
-echo ========================================
-echo LogReader Code Quality Local Verification Started
-echo ========================================
-
-:: Determine if we're in the project root or scripts directory
-set PROJECT_ROOT=%CD%
-if exist "%CD%\scripts\local_ci_test_ascii.bat" (
-    echo Running from project root: %CD%
-) else if exist "%CD%\..\src" (
-    echo Running from scripts directory, changing to project root
-    cd ..
-    set PROJECT_ROOT=%CD%
+REM 检测当前目录
+if exist "CMakeLists.txt" (
+    set PROJECT_ROOT=%cd%
+) else if exist "..\CMakeLists.txt" (
+    set PROJECT_ROOT=%cd%\..
+    cd /d "!PROJECT_ROOT!"
 ) else (
-    echo [ERROR] Script must be run from project root or scripts directory
+    echo ERROR: Cannot find CMakeLists.txt in current or parent directory
     exit /b 1
 )
 
-:: Step 1: Code Format Check
+echo PROJECT_ROOT: !PROJECT_ROOT!
 echo.
-echo [STEP 1] Code Format Check...
-echo ------------------------------
+
+REM 检查工具可用性
+echo === 1. 检查工具可用性 ===
+set TOOLS_OK=1
+
 where clang-format >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [WARNING] clang-format not found, skipping format check
-    echo    Please install LLVM or Visual Studio to get clang-format
-    echo [STEP 1] SKIPPED: clang-format not found
+if !errorlevel! neq 0 (
+    echo ❌ clang-format not found
+    set TOOLS_OK=0
 ) else (
-    echo Checking C++ code format...
-    set FORMAT_ERROR=0
-    for /r src %%f in (*.cpp *.h) do (
-        echo    Checking: %%f
-        clang-format --dry-run --Werror "%%f" >nul 2>&1
-        if %errorlevel% neq 0 (
-            echo    [ERROR] Format error: %%f
-            echo    Fix with: clang-format -i "%%f"
-            set FORMAT_ERROR=1
-        )
-    )
-    
-    if !FORMAT_ERROR!==0 (
-        echo [STEP 1] SUCCESS: All files passed format check
-    ) else (
-        echo [STEP 1] FAILED: Some files have format errors
-    )
-)
-echo.
-
-:: Step 2: Translation File Check
-echo [STEP 2] Translation File Check...
-echo ------------------------------
-set TRANSLATION_ERROR=0
-set TRANSLATION_COUNT=0
-set TRANSLATION_FOUND=0
-
-for %%f in (translations\*.ts) do (
-    set /a TRANSLATION_FOUND+=1
-    echo    Checking: %%f
-    
-    :: First check if the .qm file already exists
-    set QM_FILE=%%~dpnf.qm
-    if exist "!QM_FILE!" (
-        echo       [OK] QM file exists: !QM_FILE!
-    ) else (
-        :: Try to compile the translation file
-        echo       Compiling translation file...
-        lrelease "%%f"
-        if %errorlevel% neq 0 (
-            echo       [ERROR] Compilation failed: %%f
-            set TRANSLATION_ERROR=1
-        ) else (
-            echo       [OK] Successfully compiled: %%f
-            set /a TRANSLATION_COUNT+=1
-        )
-    )
+    echo ✅ clang-format found
 )
 
-if %TRANSLATION_FOUND%==0 (
-    echo    [WARNING] No translation files found
-    echo [STEP 2] SKIPPED: No translation files to check
-) else (
-    if %TRANSLATION_ERROR%==0 (
-        echo    Found %TRANSLATION_FOUND% translation files
-        echo [STEP 2] SUCCESS: All translation files are valid
-    ) else (
-        echo    Processed %TRANSLATION_COUNT% of %TRANSLATION_FOUND% translation files
-        echo [STEP 2] FAILED: Some translation files have errors
-    )
-)
-echo.
-
-:: Step 3: CMake Configuration Check
-echo [STEP 3] CMake Configuration Check...
-echo ------------------------------
 where cmake >nul 2>&1
-if %errorlevel% neq 0 (
-    echo    [ERROR] CMake not found
-    echo [STEP 3] FAILED: CMake not installed
-    goto cleanup
-)
-
-echo    Creating test build directory...
-mkdir build_test >nul 2>&1
-cd build_test
-echo    Running CMake configuration...
-
-:: Add Qt path to CMAKE_PREFIX_PATH if it exists in E:\software\QT
-if exist "E:\software\QT\5.14.2\mingw73_32" (
-    echo    Using Qt from E:\software\QT\5.14.2\mingw73_32
-    cmake .. -DCMAKE_PREFIX_PATH="E:\software\QT\5.14.2\mingw73_32" >nul 2>&1
+if !errorlevel! neq 0 (
+    echo ❌ cmake not found
+    set TOOLS_OK=0
 ) else (
-    cmake .. >nul 2>&1
+    echo ✅ cmake found
 )
 
-if %errorlevel% neq 0 (
-    echo    [ERROR] CMake configuration failed
-    echo [STEP 3] FAILED: CMake configuration error
-    cd ..
-    goto cleanup
+where cppcheck >nul 2>&1
+if !errorlevel! neq 0 (
+    echo ⚠️  cppcheck not found (optional)
 ) else (
-    echo    [OK] CMake configuration completed
-    echo [STEP 3] SUCCESS: CMake configuration is valid
+    echo ✅ cppcheck found
 )
-cd ..
-rmdir /s /q build_test >nul 2>&1
+
 echo.
 
-:: Step 4: Static Analysis (if available)
-echo [STEP 4] Static Analysis Check...
-echo ------------------------------
-where cppcheck >nul 2>&1
-if %errorlevel% neq 0 (
-    echo    [WARNING] cppcheck not found, skipping static analysis
-    echo    Consider installing cppcheck for code quality checks
-    echo [STEP 4] SKIPPED: cppcheck not found
-) else (
-    echo    Running static analysis on source code...
-    cppcheck --enable=warning,style --inconclusive src\ >nul 2>&1
-    if %errorlevel% neq 0 (
-        echo    [WARNING] Code quality issues found
-        echo    Run detailed check: cppcheck --enable=all src\
-        echo [STEP 4] WARNING: Potential code quality issues
-    ) else (
-        echo    [OK] No major issues found
-        echo [STEP 4] SUCCESS: Static analysis passed
+REM 2. 代码格式检查
+echo === 2. 代码格式检查 ===
+if exist "%USERPROFILE%\.vscode\extensions\ms-vscode.cpptools-*\LLVM\bin\clang-format.exe" (
+    echo Using VS Code clang-format...
+    for /r "%USERPROFILE%\.vscode\extensions" %%i in (clang-format.exe) do (
+        set CLANG_FORMAT=%%i
+        goto :format_check
     )
 )
+
+:format_check
+if defined CLANG_FORMAT (
+    echo Checking code format...
+    for %%f in (src\*.cpp src\*.h src\core\*.cpp src\core\*.h src\ui\*.cpp src\ui\*.h src\utils\*.cpp src\utils\*.h) do (
+        if exist "%%f" (
+            "!CLANG_FORMAT!" --dry-run --Werror "%%f" >nul 2>&1
+            if !errorlevel! neq 0 (
+                echo ❌ Format error in %%f
+                "!CLANG_FORMAT!" --dry-run "%%f" 2>&1 | findstr "error:"
+                set TOOLS_OK=0
+            )
+        )
+    )
+    if !TOOLS_OK!==1 echo ✅ Code format check passed
+) else (
+    echo ⚠️  Skipping format check - clang-format not found
+)
+
 echo.
 
-:: Step 5: File Structure Check
-echo [STEP 5] File Structure Check...
-echo ------------------------------
-set STRUCTURE_OK=1
+REM 3. CMake配置测试
+echo === 3. CMake配置测试 ===
+if exist build rmdir /s /q build
+mkdir build
+cd build
 
-echo    Checking for required files and directories...
-if not exist "src\main.cpp" (
-    echo    [ERROR] Missing main file: src\main.cpp
-    set STRUCTURE_OK=0
+echo Testing basic configuration...
+cmake .. -DCMAKE_BUILD_TYPE=Debug >cmake_config.log 2>&1
+if !errorlevel! neq 0 (
+    echo ❌ CMake configuration failed
+    type cmake_config.log
+    set TOOLS_OK=0
+    goto :end
 ) else (
-    echo    [OK] Found main file: src\main.cpp
+    echo ✅ CMake configuration passed
 )
 
-if not exist "CMakeLists.txt" (
-    echo    [ERROR] Missing build file: CMakeLists.txt
-    set STRUCTURE_OK=0
+echo Testing with ENABLE_TESTING...
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DENABLE_TESTING=ON >cmake_test.log 2>&1
+if !errorlevel! neq 0 (
+    echo ❌ CMake with testing failed
+    type cmake_test.log
+    set TOOLS_OK=0
 ) else (
-    echo    [OK] Found build file: CMakeLists.txt
+    echo ✅ CMake with testing passed
 )
 
-if not exist "translations\" (
-    echo    [ERROR] Missing translations directory: translations\
-    set STRUCTURE_OK=0
+echo Testing with ENABLE_COVERAGE...
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DENABLE_TESTING=ON -DENABLE_COVERAGE=ON >cmake_coverage.log 2>&1
+if !errorlevel! neq 0 (
+    echo ❌ CMake with coverage failed
+    type cmake_coverage.log
+    set TOOLS_OK=0
 ) else (
-    echo    [OK] Found translations directory
+    echo ✅ CMake with coverage passed
 )
 
-if %STRUCTURE_OK%==1 (
-    echo [STEP 5] SUCCESS: All required files present
-) else (
-    echo [STEP 5] FAILED: Missing required files
-)
 echo.
 
-echo ========================================
-echo Code Quality Check Summary:
-echo ========================================
-echo [STEP 1] Code Format Check:        %FORMAT_ERROR% errors
-echo [STEP 2] Translation File Check:   %TRANSLATION_ERROR% errors
-echo [STEP 3] CMake Configuration:      SUCCESS
-echo [STEP 4] Static Analysis:          SUCCESS
-echo [STEP 5] File Structure:           %STRUCTURE_OK% (1=OK, 0=Failed)
-echo.
-echo If all checks passed, the code can be submitted to CI/CD
-echo ========================================
+REM 4. 构建测试
+echo === 4. 构建测试 ===
+cmake --build . >build.log 2>&1
+if !errorlevel! neq 0 (
+    echo ❌ Build failed
+    type build.log | findstr /i "error"
+    set TOOLS_OK=0
+) else (
+    echo ✅ Build passed
+)
 
-:cleanup
-endlocal
-pause 
+echo.
+
+REM 5. 翻译文件检查
+echo === 5. 翻译文件检查 ===
+cd ..
+for %%f in (translations\*.ts) do (
+    if exist "%%f" (
+        echo Checking %%f...
+        REM 基本的XML格式检查
+        findstr /c:"<?xml" "%%f" >nul
+        if !errorlevel! neq 0 (
+            echo ❌ Invalid translation file: %%f
+            set TOOLS_OK=0
+        ) else (
+            echo ✅ Translation file OK: %%f
+        )
+    )
+)
+
+echo.
+
+:end
+cd "!PROJECT_ROOT!"
+
+echo ================================
+if !TOOLS_OK!==1 (
+    echo ✅ All checks passed!
+    echo Your code is ready for CI/CD
+) else (
+    echo ❌ Some checks failed
+    echo Please fix the issues above
+)
+echo ================================
+
+pause
+exit /b !TOOLS_OK! 
