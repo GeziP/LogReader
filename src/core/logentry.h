@@ -1,9 +1,9 @@
 /**
  * @file logentry.h
  * @brief Log Entry Data Structure Definition
- * @details Defines the LogEntry structure used throughout the LogReader application
- *          to represent individual log entries with their associated metadata.
- *          This structure serves as the primary data model for log analysis.
+ * @details Defines the LogEntry structure used throughout the LogReader
+ * application to represent individual log entries with their associated
+ * metadata. This structure serves as the primary data model for log analysis.
  * @author GeziP
  * @date 2025-06-27
  * @version 1.0
@@ -19,17 +19,17 @@
 /**
  * @struct LogEntry
  * @brief Data structure representing a single log entry
- * @details This structure encapsulates all the essential information of a log entry
- *          including its timestamp, severity level, source module, and content.
- *          It is designed to be lightweight and efficiently processed for filtering,
- *          searching, and display operations.
- * 
+ * @details This structure encapsulates all the essential information of a log
+ * entry including its timestamp, severity level, source module, and content.
+ * It is designed to be lightweight and efficiently processed for filtering,
+ * searching, and display operations.
+ *
  * The structure follows the common log format pattern:
  * [timestamp] [level] [module] : content
- * 
+ *
  * Example log entry:
  * [2025-06-27 14:30:15.123] [ERROR] [Database] : Connection failed
- * 
+ *
  * Usage:
  * @code
  * LogEntry entry;
@@ -47,7 +47,7 @@ struct LogEntry {
      *          time-range filtering operations.
      */
     QDateTime timestamp;
-    
+
     /**
      * @brief Log severity level
      * @details Indicates the importance or severity of the log entry.
@@ -55,15 +55,16 @@ struct LogEntry {
      *          Used for filtering logs by severity level.
      */
     QString level;
-    
+
     /**
      * @brief Source module or component name
      * @details Identifies the software module, component, or subsystem
      *          that generated this log entry. Used for module-based
-     *          filtering and organization. Examples: "Database", "UI", "Network"
+     *          filtering and organization. Examples: "Database", "UI",
+     * "Network"
      */
     QString module;
-    
+
     /**
      * @brief Actual log message content
      * @details The descriptive text of the log entry containing the

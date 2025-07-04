@@ -322,24 +322,22 @@ void TestLogEntry::testSorting()
 {
     QList<LogEntry> entries;
     
-    // 创建不同时间戳的条目
+    // 创建多个条目，时间戳不同
     for (int i = 0; i < 5; ++i) {
-        LogEntry entry;
-        entry.timestamp = QDateTime::currentDateTime().addSecs(-i);
-        entry.level = "INFO";
-        entry.module = QString("Module%1").arg(i);
-        entry.message = QString("Message %1").arg(i);
+        LogEntry entry = validEntry;
+        entry.timestamp = entry.timestamp.addSecs(i * 10);
         entries.append(entry);
     }
     
-    // 排序（需要适当的比较函数）
-    std::sort(entries.begin(), entries.end(), [](const LogEntry& a, const LogEntry& b) {
-        return a.timestamp < b.timestamp;
-    });
+    // 按时间戳排序
+    std::sort(entries.begin(), entries.end(),
+              [](const LogEntry& a, const LogEntry& b) {
+                  return a.timestamp < b.timestamp;
+              });
     
-    // 验证排序结果
+    // 验证排序
     for (int i = 1; i < entries.size(); ++i) {
-        QVERIFY(entries[i-1].timestamp <= entries[i].timestamp);
+        QVERIFY(entries[i - 1].timestamp <= entries[i].timestamp);
     }
     
     qDebug() << "✅ Sorting test passed";
