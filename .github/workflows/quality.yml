@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ '**' ]
 
+env:
+  QT_VERSION: '5.15.2'
+
 jobs:
   static-analysis:
     name: Static Analysis (${{ matrix.os }})
@@ -16,12 +19,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Install Qt
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: ${{ env.QT_VERSION }}
+          modules: qtcharts qtwebengine
+
       # Install required tools per OS (Linux shown as example)
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt update
           sudo apt install -y clang clang-tidy clang-format cppcheck
+
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install llvm -y
+          choco install cppcheck -y
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update || true
+          brew install llvm cppcheck || true
 
       - name: Configure (CMake)
         run: |
@@ -54,6 +76,14 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
+      
+      # Install Qt
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: ${{ env.QT_VERSION }}
+          modules: qtcharts qtwebengine
+          
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -80,6 +110,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
+      # Install Qt
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: ${{ env.QT_VERSION }}
+          modules: qtcharts qtwebengine
+          
       - name: Install dependencies
         run: |
           sudo apt update
