@@ -36,7 +36,15 @@ jobs:
           echo "[INFO] macOS仅做风格/静态分析检查，跳过Qt构建"
           clang-format --dry-run --Werror src/**/*.cpp src/**/*.h
           cppcheck --enable=all --inconclusive --std=c++17 src/
-      # Windows/Linux完整流程
+      # Windows/Linux自动安装Qt
+      - name: Install Qt
+        if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest'
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: 5.15.2
+          arch: ${{ matrix.os == 'windows-latest' && 'win64_mingw81' || 'gcc_64' }}
+          modules: qtbase qtcharts qtwebengine
+      # Windows/Linux依赖安装
       - name: Install dependencies (Windows)
         if: matrix.os == 'windows-latest'
         run: |
@@ -48,29 +56,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake qtbase5-dev qttools5-dev-tools libgl1-mesa-dev libicu-dev
-      - name: Setup Qt/MinGW env (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          set QT_ROOT=C:\Qt\5.15.2\mingw81_64
-          set Qt5_DIR=%QT_ROOT%\lib\cmake\Qt5
-          set CMAKE_PREFIX_PATH=%QT_ROOT%
-          set MINGW_BIN=C:\Qt\Tools\mingw810_64\bin
-          set PATH=%QT_ROOT%\bin;%MINGW_BIN%;%PATH%
-          echo "QT_ROOT=%QT_ROOT%" >> $GITHUB_ENV
-          echo "Qt5_DIR=%Qt5_DIR%" >> $GITHUB_ENV
-          echo "CMAKE_PREFIX_PATH=%CMAKE_PREFIX_PATH%" >> $GITHUB_ENV
-          echo "PATH=%QT_ROOT%\bin;%MINGW_BIN%;$PATH" >> $GITHUB_ENV
-      - name: Setup Qt env (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          export QT_ROOT=/opt/Qt/5.15.2/gcc_64
-          export Qt5_DIR=$QT_ROOT/lib/cmake/Qt5
-          export CMAKE_PREFIX_PATH=$QT_ROOT
-          export PATH=$QT_ROOT/bin:$PATH
-          echo "QT_ROOT=$QT_ROOT" >> $GITHUB_ENV
-          echo "Qt5_DIR=$Qt5_DIR" >> $GITHUB_ENV
-          echo "CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH" >> $GITHUB_ENV
-          echo "PATH=$QT_ROOT/bin:$PATH" >> $GITHUB_ENV
+      # Windows/Linux CMake构建
       - name: Configure & Build (Windows)
         if: matrix.os == 'windows-latest'
         run: |
