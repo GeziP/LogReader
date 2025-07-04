@@ -16,14 +16,9 @@ jobs:
     strategy:
       matrix:
         include:
-          # macOS arm64优先，若失败自动fallback
-          - os: macos-latest
-            qt_arch: clang_arm64
-            qt_modules: qtbase
           - os: macos-latest
             qt_arch: clang_64
-            qt_modules: qtbase
-          # 其他平台保持原有配置
+            qt_modules: qtbase qtcharts qtwebengine
           - os: windows-latest
             qt_arch: windows_x64
             qt_modules: qtbase qtcharts qtwebengine
@@ -119,7 +114,7 @@ jobs:
         with:
           version: ${{ env.QT_VERSION }}
           modules: qtcharts qtwebengine
-          arch: ${{ matrix.os == 'macos-latest' && 'clang_arm64' || '' }}
+          arch: ${{ matrix.os == 'macos-latest' && 'clang_64' || '' }}
           
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
