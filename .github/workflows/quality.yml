@@ -57,6 +57,7 @@ jobs:
           cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
       - name: clang-format Check
+        shell: bash
         run: |
           # 跨平台兼容的clang-format检查
           if command -v clang-format >/dev/null 2>&1; then
@@ -66,6 +67,7 @@ jobs:
           fi
 
       - name: clang-tidy Analysis
+        shell: bash
         run: |
           # 跨平台兼容的clang-tidy检查
           if command -v clang-tidy >/dev/null 2>&1; then
@@ -75,6 +77,7 @@ jobs:
           fi
 
       - name: cppcheck Analysis
+        shell: bash
         run: |
           # 跨平台兼容的cppcheck检查
           if command -v cppcheck >/dev/null 2>&1; then
