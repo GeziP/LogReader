@@ -26,7 +26,7 @@ jobs:
           version: ${{ env.QT_VERSION }}
           modules: qtcharts qtwebengine
           # 为macOS指定特定架构
-          arch: ${{ matrix.os == 'macos-latest' && 'clang_64' || '' }}
+          arch: ${{ matrix.os == 'macos-latest' && 'clang_arm64' || '' }}
 
       # Install required tools per OS
       - name: Install dependencies (Linux)
@@ -106,7 +106,7 @@ jobs:
         with:
           version: ${{ env.QT_VERSION }}
           modules: qtcharts qtwebengine
-          arch: ${{ matrix.os == 'macos-latest' && 'clang_64' || '' }}
+          arch: ${{ matrix.os == 'macos-latest' && 'clang_arm64' || '' }}
           
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
