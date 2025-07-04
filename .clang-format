@@ -3,13 +3,13 @@
 # Author: GeziP
 # Date: 2025-06-27
 
-BasedOnStyle: Qt
+BasedOnStyle: LLVM
 
 # Basic formatting options
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never
-ColumnLimit: 120
+ColumnLimit: 80
 
 # Line breaking and spacing
 BreakBeforeBraces: Custom
@@ -29,7 +29,7 @@ AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
 AlignOperands: true
 AlignTrailingComments: true
-AllowShortFunctionsOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: Inline
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
 

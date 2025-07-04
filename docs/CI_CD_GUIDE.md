@@ -75,10 +75,12 @@ graph TD
 ```
 .github/workflows/
 └── release.yml         # 自动发布流程 - 多平台构建和发布
+├── quality.yml         # 质量工作流 - 静态分析 / Sanitizers / 覆盖率
 ```
 
 **当前已实现的工作流：**
 - ✅ **release.yml** - 完整的多平台自动发布流程
+- ✅ **quality.yml** - 代码质量检查、Sanitizers、覆盖率
 - 🔄 **ci.yml** - 日常CI流程 (规划中)
 - 🔄 **code-quality.yml** - 代码质量检查 (规划中)
 
@@ -259,6 +261,50 @@ cppcheck --enable=all src/
 pip install lizard
 lizard src/ -l cpp
 ```
+
++### 🛠️ 自动化开发环境设置
+
++为方便快速搭建开发环境，本项目提供了自动化脚本：
+
++#### Windows环境
++```powershell
++# 以管理员权限运行PowerShell
++.\scripts\setup_dev_env.ps1
++```
+
++#### Linux/macOS环境
++```bash
++# 添加执行权限
++chmod +x scripts/setup_dev_env.sh
++# 运行安装脚本
++./scripts/setup_dev_env.sh
++```
+
++这些脚本会自动安装：
++- LLVM工具链（clang, clang-tidy, clang-format）
++- cppcheck静态分析工具
++- lcov代码覆盖率工具（Linux/macOS）
++- Python和pre-commit
++- Microsoft GSL库
++- 设置预提交钩子
++- 创建初始构建目录
+
++安装完成后，您可以立即使用以下功能：
++1. 自动代码格式化（提交前）
++2. 静态代码分析
++3. 动态分析（Sanitizers）
++4. 代码覆盖率生成
++5. GSL库开发
+
++#### 使用pre-commit钩子
++安装后，每次`git commit`前会自动运行以下检查：
++- 代码格式检查（clang-format）
++- 静态分析（cppcheck）
++- CMake文件格式检查
++- 文件末尾空行检查
++- 空白字符检查
+
++如果检查失败，提交会被阻止，您需要修复问题后重新提交。
 
 ## 🔧 配置文件说明
 
