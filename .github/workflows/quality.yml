@@ -112,7 +112,7 @@ jobs:
         uses: jurplel/install-qt-action@v3
         with:
           version: ${{ env.QT_VERSION }}
-          modules: qtcharts qtwebengine
+          modules: qtbase
           arch: ${{ matrix.os == 'windows-latest' && 'win64_mingw81' || 'gcc_64' }}
           
       - name: Install dependencies (Windows)
@@ -169,7 +169,7 @@ jobs:
         uses: jurplel/install-qt-action@v3
         with:
           version: ${{ env.QT_VERSION }}
-          modules: qtcharts qtwebengine
+          modules: qtbase
           
       - name: Install dependencies
         run: |
