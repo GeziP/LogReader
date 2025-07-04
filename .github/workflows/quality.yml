@@ -27,13 +27,13 @@ jobs:
         if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest'
         run: |
           python -m pip install aqtinstall
-          python -m aqt list-qt ${{ matrix.os == 'windows-latest' && 'windows' || 'linux' }} desktop --modules 5.15.2 ${{ matrix.os == 'windows-latest' && 'win64_mingw81' || 'gcc_64' }}
+          python -m aqt list-qt ${{ matrix.os == 'windows-latest' && 'windows' || 'linux' }} desktop --modules 6.5.3 ${{ matrix.os == 'windows-latest' && 'win64_mingw' || 'gcc_64' }}
       - name: Install Qt
         if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest'
         uses: jurplel/install-qt-action@v3
         with:
-          version: 5.15.2
-          arch: ${{ matrix.os == 'windows-latest' && 'win64_mingw81' || 'gcc_64' }}
+          version: 6.5.3
+          arch: ${{ matrix.os == 'windows-latest' && 'win64_mingw' || 'gcc_64' }}
           modules: qtbase
       # Windows/Linux依赖安装
       - name: Install dependencies (Windows)
