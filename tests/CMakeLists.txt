@@ -42,6 +42,13 @@ macro(add_logviewer_test testname)
     
     # 设置测试超时（30秒）
     set_tests_properties(${testname} PROPERTIES TIMEOUT 30)
+    
+    # 为覆盖率测试添加环境变量
+    if(ENABLE_COVERAGE)
+        set_tests_properties(${testname} PROPERTIES
+            ENVIRONMENT "GCOV_PREFIX=${CMAKE_BINARY_DIR}"
+        )
+    endif()
 endmacro()
 
 # 核心功能测试
@@ -110,16 +117,28 @@ add_custom_target(run_tests
     COMMENT "Running all LogReader tests"
 )
 
-# 测试覆盖率（如果启用）
+# 简化的Coverage目标
 if(ENABLE_COVERAGE)
-    include(CodeCoverage)
-    setup_target_for_coverage_gcovr_html(
-        NAME coverage
-        EXECUTABLE run_tests
-        DEPENDENCIES run_tests
-        BASE_DIRECTORY "${CMAKE_SOURCE_DIR}"
-        EXCLUDE "tests/*" "build/*" "/usr/*"
-    )
+    find_program(GCOVR_EXECUTABLE gcovr)
+    find_program(LCOV_EXECUTABLE lcov)
+    
+    if(LCOV_EXECUTABLE)
+        add_custom_target(coverage
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/coverage
+            COMMAND ${LCOV_EXECUTABLE} --capture --directory ${CMAKE_BINARY_DIR} --output-file ${CMAKE_BINARY_DIR}/coverage/coverage.info
+            COMMAND ${LCOV_EXECUTABLE} --remove ${CMAKE_BINARY_DIR}/coverage/coverage.info '/usr/*' '*/tests/*' '*/build/*' --output-file ${CMAKE_BINARY_DIR}/coverage/coverage_filtered.info
+            COMMAND ${LCOV_EXECUTABLE} --list ${CMAKE_BINARY_DIR}/coverage/coverage_filtered.info
+            DEPENDS run_tests
+            COMMENT "Generating coverage report"
+        )
+    elseif(GCOVR_EXECUTABLE)
+        add_custom_target(coverage
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/coverage
+            COMMAND ${GCOVR_EXECUTABLE} --root ${CMAKE_SOURCE_DIR} --html --html-details -o ${CMAKE_BINARY_DIR}/coverage/coverage.html ${CMAKE_BINARY_DIR}
+            DEPENDS run_tests
+            COMMENT "Generating coverage report with gcovr"
+        )
+    endif()
 endif()
 
 message(STATUS "LogReader test suite configured successfully")
