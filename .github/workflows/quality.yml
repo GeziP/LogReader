@@ -30,6 +30,7 @@ jobs:
         run: |
           which clang-format || brew install llvm
           which cppcheck || brew install cppcheck
+          export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
           clang-format --version
           cppcheck --version
           echo "[INFO] macOS仅做风格/静态分析检查，跳过Qt构建"
@@ -41,6 +42,7 @@ jobs:
         run: |
           choco install -y mingw cmake ninja
           echo "C:\ProgramData\chocolatey\bin;C:\tools\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          timeout /t 10
       - name: Install dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
