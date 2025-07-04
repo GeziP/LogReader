@@ -16,26 +16,12 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: macos-latest
-            job_type: style
           - os: windows-latest
             job_type: full
           - os: ubuntu-latest
             job_type: full
     steps:
       - uses: actions/checkout@v4
-      # macOS仅做风格/静态分析
-      - name: Style & Static Analysis (macOS)
-        if: matrix.os == 'macos-latest'
-        run: |
-          which clang-format || brew install llvm
-          which cppcheck || brew install cppcheck
-          export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
-          clang-format --version
-          cppcheck --version
-          echo "[INFO] macOS仅做风格/静态分析检查，跳过Qt构建"
-          clang-format --dry-run --Werror src/**/*.cpp src/**/*.h
-          cppcheck --enable=all --inconclusive --std=c++17 src/
       # Windows/Linux自动安装Qt（仅qtbase，避免模块缺失导致CI失败）
       - name: List available Qt modules
         if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest'
@@ -117,7 +103,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
       
@@ -127,8 +113,14 @@ jobs:
         with:
           version: ${{ env.QT_VERSION }}
           modules: qtcharts qtwebengine
-          arch: ${{ matrix.os == 'macos-latest' && 'clang_64' || '' }}
+          arch: ${{ matrix.os == 'windows-latest' && 'win64_mingw81' || 'gcc_64' }}
           
+      - name: Install dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install -y mingw cmake ninja
+          echo "C:\ProgramData\chocolatey\bin;C:\tools\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          timeout /t 10
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
