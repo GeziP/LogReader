@@ -10,6 +10,19 @@ echo ========================================
 echo LogReader Code Quality Local Verification Started
 echo ========================================
 
+:: Determine if we're in the project root or scripts directory
+set PROJECT_ROOT=%CD%
+if exist "%CD%\scripts\local_ci_test_ascii.bat" (
+    echo Running from project root: %CD%
+) else if exist "%CD%\..\src" (
+    echo Running from scripts directory, changing to project root
+    cd ..
+    set PROJECT_ROOT=%CD%
+) else (
+    echo [ERROR] Script must be run from project root or scripts directory
+    exit /b 1
+)
+
 :: Step 1: Code Format Check
 echo.
 echo [STEP 1] Code Format Check...
@@ -90,19 +103,27 @@ where cmake >nul 2>&1
 if %errorlevel% neq 0 (
     echo    [ERROR] CMake not found
     echo [STEP 3] FAILED: CMake not installed
-    exit /b 1
+    goto cleanup
 )
 
 echo    Creating test build directory...
 mkdir build_test >nul 2>&1
 cd build_test
 echo    Running CMake configuration...
-cmake .. >nul 2>&1
+
+:: Add Qt path to CMAKE_PREFIX_PATH if it exists in E:\software\QT
+if exist "E:\software\QT\5.14.2\mingw73_32" (
+    echo    Using Qt from E:\software\QT\5.14.2\mingw73_32
+    cmake .. -DCMAKE_PREFIX_PATH="E:\software\QT\5.14.2\mingw73_32" >nul 2>&1
+) else (
+    cmake .. >nul 2>&1
+)
+
 if %errorlevel% neq 0 (
     echo    [ERROR] CMake configuration failed
     echo [STEP 3] FAILED: CMake configuration error
     cd ..
-    exit /b 1
+    goto cleanup
 ) else (
     echo    [OK] CMake configuration completed
     echo [STEP 3] SUCCESS: CMake configuration is valid
@@ -179,5 +200,6 @@ echo.
 echo If all checks passed, the code can be submitted to CI/CD
 echo ========================================
 
+:cleanup
 endlocal
 pause 
