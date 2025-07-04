@@ -469,6 +469,28 @@ scripts\auto_format_and_check.bat
 2. 提交前运行auto_format_and_check.bat，确保所有检查通过。
 3. 通过后再push/PR，CI必过。
 
+## 本地与CI格式化工具链一致性
+
+- 项目根目录有唯一`.clang-format`配置文件，CI与本地均强制使用该文件。
+- CI指定clang-format版本（如14/15/16），建议本地用包管理器安装同版本。
+- Windows推荐choco，Linux推荐apt，macOS推荐brew。
+- 格式化不通过时，先本地运行`clang-format -i <file>`修正。
+
+## CI Qt架构自动适配说明
+
+- CI脚本已根据runner平台自动指定Qt架构：
+  - Windows: `arch: windows_x64`
+  - Linux: `arch: linux_x64`
+  - macOS: `arch: clang_64`
+- 如需支持新架构，扩展`arch`参数即可。
+- 若遇"架构不匹配"链接错误，优先检查CI日志Qt安装步骤与runner架构是否一致。
+
+## 常见CI架构适配问题排查
+
+- 链接报`undefined symbols for architecture ...`，多为Qt库与runner架构不符。
+- 检查`Install Qt`步骤arch参数，确保与runner平台一致。
+- 如需强制指定平台，可在workflow中调整`runs-on`参数。
+
 ---
 
 <div align="center">

@@ -212,4 +212,26 @@ scripts\auto_format_and_check.bat
 ### Recommended Workflow
 1. Develop and debug in Qt Creator first.
 2. Run auto_format_and_check.bat before commit to ensure all checks pass.
-3. If all checks pass, push/PR and CI will succeed. 
+3. If all checks pass, push/PR and CI will succeed.
+
+## Consistency of Formatting Toolchain (clang-format)
+
+- The project root contains a single `.clang-format` file, enforced by both CI and local scripts.
+- CI specifies the clang-format version (e.g., 14/15/16); developers should install the same version locally via package manager.
+- Recommended: choco for Windows, apt for Linux, brew for macOS.
+- If formatting fails, run `clang-format -i <file>` locally to fix.
+
+## CI Qt Architecture Auto-Adaptation
+
+- CI workflows now specify Qt architecture based on runner platform:
+  - Windows: `arch: windows_x64`
+  - Linux: `arch: linux_x64`
+  - macOS: `arch: clang_64`
+- To support new architectures, extend the `arch` parameter in the workflow.
+- If you see linker errors about architecture mismatch, check the Qt install step and runner architecture in CI logs.
+
+## Common CI Architecture Troubleshooting
+
+- Linker errors like `undefined symbols for architecture ...` usually mean Qt library and runner architecture mismatch.
+- Check the `Install Qt` step's arch parameter matches the runner platform.
+- To force a specific platform, adjust the `runs-on` parameter in the workflow. 
