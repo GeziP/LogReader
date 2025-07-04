@@ -58,11 +58,46 @@ jobs:
           echo "/opt/homebrew/bin" >> $GITHUB_PATH
           echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
 
-      - name: Configure (CMake)
+      - name: Setup Qt/MinGW env (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          set QT_ROOT=C:\Qt\5.15.2\mingw81_64
+          set Qt5_DIR=%QT_ROOT%\lib\cmake\Qt5
+          set CMAKE_PREFIX_PATH=%QT_ROOT%
+          set MINGW_BIN=C:\Qt\Tools\mingw810_64\bin
+          set PATH=%QT_ROOT%\bin;%MINGW_BIN%;%PATH%
+          echo "[INFO] CI环境变量已设置：QT_ROOT=%QT_ROOT%, MINGW_BIN=%MINGW_BIN%"
+          echo "QT_ROOT=%QT_ROOT%" >> $GITHUB_ENV
+          echo "Qt5_DIR=%Qt5_DIR%" >> $GITHUB_ENV
+          echo "CMAKE_PREFIX_PATH=%CMAKE_PREFIX_PATH%" >> $GITHUB_ENV
+          echo "PATH=%QT_ROOT%\bin;%MINGW_BIN%;$PATH" >> $GITHUB_ENV
+      - name: Setup Qt env (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          export QT_ROOT=/opt/Qt/5.15.2/gcc_64
+          export Qt5_DIR=$QT_ROOT/lib/cmake/Qt5
+          export CMAKE_PREFIX_PATH=$QT_ROOT
+          export PATH=$QT_ROOT/bin:$PATH
+          echo "[INFO] CI环境变量已设置：QT_ROOT=$QT_ROOT"
+          echo "QT_ROOT=$QT_ROOT" >> $GITHUB_ENV
+          echo "Qt5_DIR=$Qt5_DIR" >> $GITHUB_ENV
+          echo "CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH" >> $GITHUB_ENV
+          echo "PATH=$QT_ROOT/bin:$PATH" >> $GITHUB_ENV
+
+      - name: Configure & Build (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          mkdir build
+          cd build
+          cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+          cmake --build . -- -j2
+      - name: Configure & Build (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           mkdir -p build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          cmake --build . -- -j$(nproc || echo 2)
 
       - name: clang-format Check
         shell: bash
