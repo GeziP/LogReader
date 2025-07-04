@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # 构建选项
 option(ENABLE_TESTING "Build tests" OFF)
 option(ENABLE_COVERAGE "Enable coverage" OFF)
+option(ENABLE_DEPLOY "Enable Qt deployment (for release packaging)" OFF)
 
 # Coverage配置
 if(ENABLE_COVERAGE)
@@ -85,6 +86,7 @@ add_custom_target(translations ALL DEPENDS ${QM_FILES})
 add_dependencies(LogReader translations)
 
 # 确保翻译文件被复制到输出目录
+if(ENABLE_DEPLOY)
 foreach(qm_file ${QM_FILES})
     get_filename_component(qm_filename ${qm_file} NAME)
     add_custom_command(TARGET LogReader POST_BUILD
@@ -93,6 +95,7 @@ foreach(qm_file ${QM_FILES})
         COMMENT "Copying ${qm_filename} to output directory"
     )
 endforeach()
+endif()
 
 # 测试支持
 if(ENABLE_TESTING)
@@ -101,9 +104,10 @@ if(ENABLE_TESTING)
 endif()
 
 # 可选：Windows部署命令（仅在找到windeployqt时执行）
+if(ENABLE_DEPLOY)
 if(WIN32 AND QT_VERSION_MAJOR EQUAL 6)
     get_target_property(_qt_qmake_location Qt6::qmake IMPORTED_LOCATION)
-elseif(WIN32 AND QT_VERSION_MAJOR EQUAL 5)
+elif(WIN32 AND QT_VERSION_MAJOR EQUAL 5)
     get_target_property(_qt_qmake_location Qt5::qmake IMPORTED_LOCATION)
 endif()
 
@@ -122,4 +126,5 @@ if(WIN32 AND _qt_qmake_location)
             COMMENT "Deploy Qt libraries"
         )
     endif()
+endif()
 endif()

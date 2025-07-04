@@ -39,7 +39,8 @@
  * entry.message = "Application started successfully";
  * @endcode
  */
-struct LogEntry {
+struct LogEntry
+{
     /**
      * @brief Timestamp when the log entry was created
      * @details Precise date and time information including milliseconds

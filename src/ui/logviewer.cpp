@@ -547,7 +547,7 @@ QList<LogEntry> LogViewer::parseLogFile(const QString& filePath,
             }
             entry.level = match.captured(2).trimmed();
             entry.module = match.captured(3).trimmed();
-            entry.content = match.captured(4);
+            entry.message = match.captured(4);
             logEntries.append(entry);
         }
     }
@@ -632,7 +632,7 @@ void LogViewer::displayLogs(const QList<LogEntry>& logs)
             entry.timestamp.toString("yyyy-MM-dd HH:mm:ss.zzz"));
         QStandardItem* levelItem = new QStandardItem(entry.level);
         QStandardItem* moduleItem = new QStandardItem(entry.module);
-        QStandardItem* contentItem = new QStandardItem(entry.content);
+        QStandardItem* contentItem = new QStandardItem(entry.message);
 
         rowItems << lineNumberItem << timestampItem << levelItem << moduleItem
                  << contentItem;
@@ -959,7 +959,7 @@ QList<LogEntry> LogViewer::getCurrentFilteredLogs() const
                                                     "yyyy-MM-dd HH:mm:ss.zzz");
             entry.level = levelItem->text();
             entry.module = moduleItem->text();
-            entry.content = contentItem->text();
+            entry.message = contentItem->text();
 
             filteredLogs.append(entry);
         }
