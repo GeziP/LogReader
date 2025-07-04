@@ -36,14 +36,19 @@ jobs:
           echo "[INFO] macOS仅做风格/静态分析检查，跳过Qt构建"
           clang-format --dry-run --Werror src/**/*.cpp src/**/*.h
           cppcheck --enable=all --inconclusive --std=c++17 src/
-      # Windows/Linux自动安装Qt
+      # Windows/Linux自动安装Qt（仅qtbase，避免模块缺失导致CI失败）
+      - name: List available Qt modules
+        if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest'
+        run: |
+          python -m pip install aqtinstall
+          python -m aqt list-qt ${{ matrix.os == 'windows-latest' && 'windows' || 'linux' }} desktop --modules 5.15.2 ${{ matrix.os == 'windows-latest' && 'win64_mingw81' || 'gcc_64' }}
       - name: Install Qt
         if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest'
         uses: jurplel/install-qt-action@v3
         with:
           version: 5.15.2
           arch: ${{ matrix.os == 'windows-latest' && 'win64_mingw81' || 'gcc_64' }}
-          modules: qtbase qtcharts qtwebengine
+          modules: qtbase
       # Windows/Linux依赖安装
       - name: Install dependencies (Windows)
         if: matrix.os == 'windows-latest'
