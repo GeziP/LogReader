@@ -29,7 +29,6 @@ jobs:
         with:
           version: 6.5.3
           arch: ${{ matrix.os == 'windows-latest' && 'win64_mingw' || 'gcc_64' }}
-          modules: qtbase
       # Windows/Linux依赖安装
       - name: Install dependencies (Windows)
         if: matrix.os == 'windows-latest'
@@ -107,7 +106,6 @@ jobs:
         uses: jurplel/install-qt-action@v3
         with:
           version: ${{ env.QT_VERSION }}
-          modules: qtbase
           arch: ${{ matrix.os == 'windows-latest' && 'win64_mingw' || 'gcc_64' }}
           
       - name: Install dependencies (Windows)
@@ -164,7 +162,6 @@ jobs:
         uses: jurplel/install-qt-action@v3
         with:
           version: ${{ env.QT_VERSION }}
-          modules: qtbase
           
       - name: Install dependencies
         run: |
