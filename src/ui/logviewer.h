@@ -344,7 +344,7 @@ private:
     QPushButton* deselectAllModulesButton; ///< Button to deselect all modules
 
     // UI Controls - Search
-    QLineEdit* searchLineEdit; ///< Text input for search terms
+    QLineEdit* searchLineEdit;     ///< Text input for search terms
     QPushButton*
         searchPreviousButton;      ///< Button to go to previous search result
     QPushButton* searchNextButton; ///< Button to go to next search result
@@ -359,9 +359,9 @@ private:
     QString currentFilePath;   ///< Path of currently loaded log file
     QString currentSearchText; ///< Current search term
     QList<QStandardItem*>
-        searchResults; ///< List of items matching current search
-    int currentSearchIndex; ///< Index of currently selected search result
-    QFont logFont; ///< Font used for displaying log content
+        searchResults;         ///< List of items matching current search
+    int currentSearchIndex;    ///< Index of currently selected search result
+    QFont logFont;             ///< Font used for displaying log content
 };
 
 #endif // LOGVIEWER_H

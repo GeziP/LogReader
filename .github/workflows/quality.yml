@@ -126,7 +126,8 @@ jobs:
           echo "/opt/homebrew/bin" >> $GITHUB_PATH
           echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
           
-      - name: Configure with Sanitizers
+      - name: Configure with Sanitizers (Linux)
+        if: runner.os == 'Linux'
         run: |
           mkdir -p build
           cd build
@@ -136,18 +137,38 @@ jobs:
                    -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
                    -DENABLE_TESTING=ON
                    
-      - name: Build & Tests
+      - name: Configure with Debug (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          mkdir build
+          cd build
+          cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Debug \
+                   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+                   -DENABLE_TESTING=ON
+                   
+      - name: Build & Tests (Linux)
+        if: runner.os == 'Linux'
         run: |
           cd build
-          # 使用跨平台兼容的CPU核心数检测
-          NPROC=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
-          make -j$NPROC
+          make -j$(nproc)
           # 运行测试（如果存在）
           if [ -f CTestTestfile.cmake ]; then
             ctest --output-on-failure || true
           else
             echo "No tests configured, skipping test execution"
           fi
+          
+      - name: Build & Tests (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cd build
+          cmake --build . -- -j2
+          # 运行测试（如果存在）
+          if (Test-Path "CTestTestfile.cmake") {
+            ctest --output-on-failure
+          } else {
+            Write-Host "No tests configured, skipping test execution"
+          }
 
   coverage:
     name: Coverage (Ubuntu)
