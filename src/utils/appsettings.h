@@ -101,7 +101,7 @@ private:
     // Disable copy construction and assignment
     AppSettings(const AppSettings&) = delete; ///< Deleted copy constructor
     AppSettings& operator=(const AppSettings&) =
-        delete; ///< Deleted assignment operator
+        delete;                               ///< Deleted assignment operator
 
     QSettings* settings; ///< Qt settings object for persistent storage
 

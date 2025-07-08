@@ -176,9 +176,9 @@ private:
     QTranslator* currentTranslator; ///< Currently active translator instance
     Language currentLanguage;       ///< Current language setting
     QMap<Language, QString>
-        languageCodes; ///< Mapping of Language enum to language codes
+        languageCodes;          ///< Mapping of Language enum to language codes
     QMap<Language, QString>
-        displayNames; ///< Mapping of Language enum to display names
+        displayNames;           ///< Mapping of Language enum to display names
     std::function<void(Language)>
         languageChangeCallback; ///< Callback function for language change
                                 ///< events
