@@ -214,12 +214,12 @@ void LanguageManager::loadTranslation(Language language)
 
     // Load translation file from file system
     QStringList searchPaths = {
-        appDir + "/translations",    // Production deployment path
+        appDir + "/translations",  // Production deployment path
         appDir + "/../translations", // Development build path (one level up)
         appDir +
-            "/../../translations",   // Development source path (two levels up)
-        "./translations",            // Current directory relative path
-        "."                          // Current directory
+            "/../../translations", // Development source path (two levels up)
+        "./translations", // Current directory relative path
+        "."               // Current directory
     };
 
     for (const QString& path : searchPaths) {
