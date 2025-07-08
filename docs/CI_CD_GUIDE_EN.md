@@ -53,11 +53,11 @@ It automatically detects the location and adjusts paths accordingly.
 For the script to work correctly, ensure your PATH includes:
 - D:\DevTools\LLVM\bin (for clang-format)
 - D:\DevTools\Cppcheck (for cppcheck)
-- Qt bin directory (e.g., E:\software\QT\5.14.2\mingw73_32\bin)
+- Qt bin directory (e.g., E:\software\QT\6.5.3\mingw_64\bin)
 
 You can add these temporarily in PowerShell:
 ```powershell
-$env:Path += ";D:\DevTools\LLVM\bin;D:\DevTools\Cppcheck;E:\software\QT\5.14.2\mingw73_32\bin"
+$env:Path += ";D:\DevTools\LLVM\bin;D:\DevTools\Cppcheck;E:\software\QT\6.5.3\mingw_64\bin"
 ```
 
 ## Pre-commit Hooks
@@ -223,10 +223,10 @@ scripts\auto_format_and_check.bat
 
 ## CI Qt Architecture Auto-Adaptation
 
-- CI workflows now specify Qt architecture based on runner platform:
-  - Windows: `arch: windows_x64`
-  - Linux: `arch: linux_x64`
-  - macOS: `arch: clang_64`
+- CI workflows now use Qt 6.5.3 with platform-specific architectures:
+  - Windows: `arch: win64_mingw` (Qt 6.5.3)
+  - Linux: `arch: gcc_64` (Qt 6.5.3)
+  - macOS: `arch: clang_64` (Qt 6.5.3)
 - To support new architectures, extend the `arch` parameter in the workflow.
 - If you see linker errors about architecture mismatch, check the Qt install step and runner architecture in CI logs.
 
