@@ -7,7 +7,7 @@ on:
     branches: [ '**' ]
 
 env:
-  QT_VERSION: '5.15.2'
+  QT_VERSION: '6.5.3'
 
 jobs:
   static-analysis:
@@ -22,12 +22,7 @@ jobs:
             job_type: full
     steps:
       - uses: actions/checkout@v4
-      # Windows/Linux自动安装Qt（仅qtbase，避免模块缺失导致CI失败）
-      - name: List available Qt modules
-        if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest'
-        run: |
-          python -m pip install aqtinstall
-          python -m aqt list-qt ${{ matrix.os == 'windows-latest' && 'windows' || 'linux' }} desktop --modules 6.5.3 ${{ matrix.os == 'windows-latest' && 'win64_mingw' || 'gcc_64' }}
+      
       - name: Install Qt
         if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest'
         uses: jurplel/install-qt-action@v3
@@ -113,7 +108,7 @@ jobs:
         with:
           version: ${{ env.QT_VERSION }}
           modules: qtbase
-          arch: ${{ matrix.os == 'windows-latest' && 'win64_mingw81' || 'gcc_64' }}
+          arch: ${{ matrix.os == 'windows-latest' && 'win64_mingw' || 'gcc_64' }}
           
       - name: Install dependencies (Windows)
         if: matrix.os == 'windows-latest'
