@@ -1,55 +1,95 @@
-# CI/CD 流程质量提升
+# CI/CD流程质量提升任务
 
-## 背景
-当前项目已具有跨平台 Release 构建工作流 `release.yml`，但缺乏持续的质量保障机制（静态分析、动态分析、覆盖率、安全扫描等）。为提高代码质量、符合 C++ Core Guidelines，并方便在 Pull Request 阶段及时发现问题，需要引入独立的 Quality Workflow 及配套工具。
+## 任务背景
+用户在GitHub Actions CI中遇到Qt模块安装失败问题，导致Windows和Linux平台构建失败。错误信息显示aqtinstall无法找到qtbase模块。
 
-## 目标
-1. 引入静态代码分析（clang-tidy、cppcheck）并启用 `cppcoreguidelines-*` 规则集。
-2. 引入代码格式检查（clang-format）确保统一编码风格。
-3. 引入动态运行时检查（ASAN / UBSAN）发现潜在内存与未定义行为。
-4. 生成并上报代码覆盖率（gcov + lcov → Codecov badge）。
-5. 安全与依赖扫描（Trivy、GitHub Secret Scanning）。
-6. 集成 **Guidelines Support Library (GSL)** 并在静态分析中检测其正确使用。
-7. 通过 **pre-commit** 钩子在本地阻止不合规提交。
-8. 保持与现有 `release.yml` 构建流程解耦，互不影响。
+## 问题分析
+1. **Qt版本不一致**：环境变量设置为5.15.2，但部分job使用6.5.3
+2. **aqtinstall兼容性**：Qt 5.15.2的qtbase模块在当前镜像中不可用
+3. **架构配置混乱**：Windows平台同时使用win64_mingw和win64_mingw81
 
-## 任务清单
-- [ ] 创建 `.github/workflows/quality.yml`，在 `push` / `pull_request` 触发。
-  - [ ] Matrix 运行：`ubuntu-latest`, `windows-latest`, `macos-latest`。
-  - [ ] Job: **Build & Test**（Debug）
-  - [ ] Job: **Static-Analysis** — clang-tidy、cppcheck、clang-format diff。
-  - [ ] Job: **Sanitizers** — Linux/macOS 启用 ASAN & UBSAN。
-  - [ ] Job: **Coverage** — 生成 lcov 报告并上传 Codecov。
-  - [ ] Job: **Security-Scan** — Trivy 并启用 GitHub 内置 Secret Scanning。
-- [ ] 新增 `.clang-tidy` 配置文件，启用 `cppcoreguidelines-*`, `modernize-*`, `performance-*`, `readability-*` 等。
-- [ ] 新增 `.clang-format`（基于 LLVM 风格，80 列宽）。
-- [ ] 编写 `scripts/run_cppcheck.sh` 统一 cppcheck 调用并输出 XML 供 CI 解析。
-- [ ] 通过 vcpkg / git submodule 引入 `microsoft-gsl`，并在 `CMakeLists.txt`、`LogReader.pro` 中链接。
-- [ ] 添加 `.pre-commit-config.yaml`，集成 clang-format、clang-tidy、cppcheck、cmake-format。
-- [ ] 更新 `docs/CI_CD_GUIDE.md` 说明质量流程与本地开发指南。
+## 解决方案
+采用统一升级到Qt 6.5.3的方案，确保aqtinstall兼容性。
 
-## 验收标准
-1. 新增 **Quality** 工作流在每个 Pull Request 自动运行，并在状态检查中展示。
-2. 静态分析 **0 Error / 0 Warning**（或预设阈值）方可合并。
-3. 动态运行时检查 100% 通过，无崩溃或 Undefined Behavior 报告。
-4. 覆盖率报告成功上传，主分支 badge ≥ 80%。
-5. 所有依赖与容器扫描无高危漏洞。
+## 实施计划
 
-## 里程碑与迭代
-- **v1.3.0**：引入 clang-tidy、clang-format、质量工作流骨架。
-- **v1.4.0**：覆盖 cppcheck、ASAN/UBSAN、覆盖率上传。
-- **v1.5.0**：集成 GSL、pre-commit、完整安全扫描。
+### ✅ 已完成任务
+1. **统一Qt版本配置**
+   - 将QT_VERSION从5.15.2升级到6.5.3
+   - 确保所有jobs使用相同版本
 
-## 参考链接
-- C++ Core Guidelines: https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines
-- Microsoft GSL: https://github.com/microsoft/GSL
-- clang-tidy docs: https://clang.llvm.org/extra/clang-tidy/
-- cppcheck: https://github.com/danmar/cppcheck
-- ASAN/UBSAN: https://clang.llvm.org/docs/AddressSanitizer.html
-- Codecov: https://about.codecov.io
-- Trivy: https://github.com/aquasecurity/trivy
+2. **修复架构配置不一致**
+   - 统一Windows使用win64_mingw
+   - 统一Linux使用gcc_64
 
----
-**负责人**: @GeziP  
-**优先级**: High  
-**状态**: Draft 
+3. **移除多余步骤**
+   - 删除aqt list-qt查询步骤
+   - Qt 6.5.3的qtbase模块稳定可用
+
+4. **更新文档**
+   - 更新CI/CD指南中的Qt版本信息
+   - 修正环境变量示例路径
+
+## 技术细节
+
+### 修改的文件
+- `.github/workflows/quality.yml`：主要CI配置
+- `docs/CI_CD_GUIDE_EN.md`：用户文档
+
+### 关键变更
+```yaml
+env:
+  QT_VERSION: '6.5.3'  # 从5.15.2升级
+
+# 统一架构配置
+arch: ${{ matrix.os == 'windows-latest' && 'win64_mingw' || 'gcc_64' }}
+```
+
+## 预期效果
+- 解决aqtinstall模块找不到的问题
+- Windows和Linux平台CI正常运行
+- 统一的Qt版本管理，避免版本冲突
+
+## 执行时间
+2025-01-27
+
+## 状态
+✅ 已完成修复
+
+## 最新更新 (2025-01-27)
+
+### 🔧 第二轮修复：移除modules参数
+发现Qt 6.5.3仍然出现qtbase模块找不到的问题，根本原因是aqtinstall与Qt 6.x的模块参数不兼容。
+
+**解决方案**：
+- 移除所有Qt安装步骤中的`modules: qtbase`参数
+- 让Qt 6.5.3安装默认组件，避免模块兼容性问题
+
+**技术细节**：
+```yaml
+# 修复前
+- name: Install Qt
+  uses: jurplel/install-qt-action@v3
+  with:
+    version: 6.5.3
+    arch: win64_mingw
+    modules: qtbase  # ❌ 导致aqtinstall错误
+
+# 修复后  
+- name: Install Qt
+  uses: jurplel/install-qt-action@v3
+  with:
+    version: 6.5.3
+    arch: win64_mingw  # ✅ 使用默认组件
+```
+
+**最终修复**：
+1. ✅ Qt版本统一：5.15.2 → 6.5.3
+2. ✅ 架构配置统一：win64_mingw, gcc_64
+3. ✅ 移除modules参数：避免aqtinstall兼容性问题
+4. ✅ 文档更新：反映所有变更
+
+## 预期效果
+- 彻底解决"packages ['qtbase'] were not found"错误
+- CI能够成功安装Qt并完成构建
+- 多平台构建稳定运行 

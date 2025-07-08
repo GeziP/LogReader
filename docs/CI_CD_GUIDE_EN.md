@@ -227,6 +227,7 @@ scripts\auto_format_and_check.bat
   - Windows: `arch: win64_mingw` (Qt 6.5.3)
   - Linux: `arch: gcc_64` (Qt 6.5.3)
   - macOS: `arch: clang_64` (Qt 6.5.3)
+- **Note**: The `modules` parameter has been removed from Qt installation to avoid aqtinstall compatibility issues. Qt 6.5.3 installs default components automatically.
 - To support new architectures, extend the `arch` parameter in the workflow.
 - If you see linker errors about architecture mismatch, check the Qt install step and runner architecture in CI logs.
 
