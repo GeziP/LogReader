@@ -466,7 +466,7 @@ void LogViewer::loadLogFile(const QString& filePath)
     allModules = moduleSet.values();
     allModules.sort(Qt::CaseInsensitive); // Sort alphabetically
     allLevels = levelSet.values();
-    allLevels.sort(Qt::CaseInsensitive); // Sort alphabetically
+    allLevels.sort(Qt::CaseInsensitive);  // Sort alphabetically
 
     // Clear existing module selection checkboxes
     QLayoutItem* child;
@@ -475,7 +475,7 @@ void LogViewer::loadLogFile(const QString& filePath)
         if (widget) {
             widget->deleteLater(); // Safely delete widget
         }
-        delete child; // Delete layout item
+        delete child;              // Delete layout item
     }
     moduleCheckBoxes.clear();
 
