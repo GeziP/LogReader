@@ -29,14 +29,23 @@ jobs:
       with:
         version: ${{ env.QT_VERSION }}
         arch: win64_mingw
-        tools: tools_mingw
+        tools: tools_mingw,qt.tools.win64_mingw1120
 
     - name: Add MinGW to PATH (Qt Tools)
       run: |
         # Derive Tools directory from Qt6_DIR and append MinGW bin to PATH
         if ($env:Qt6_DIR) {
           $qtBase = Split-Path -Parent (Split-Path -Parent $env:Qt6_DIR)
-          $mingwDir = Get-ChildItem -Path (Join-Path $qtBase 'Tools') -Filter 'mingw*64' -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          $toolsDir = Join-Path $qtBase 'Tools'
+          $preferredNames = @('mingw1120_64','mingw1220_64')
+          $mingwDir = $null
+          foreach ($name in $preferredNames) {
+            $candidate = Join-Path $toolsDir $name
+            if (Test-Path $candidate) { $mingwDir = Get-Item $candidate; break }
+          }
+          if (-not $mingwDir) {
+            $mingwDir = Get-ChildItem -Path $toolsDir -Filter 'mingw*64' -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          }
           if ($mingwDir) {
             $mingwBin = Join-Path $mingwDir.FullName 'bin'
             "$mingwBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
