@@ -1,0 +1,22 @@
+Checks: >
+  bugprone-*,
+  clang-analyzer-*,
+  cert-*,
+  hicpp-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  misc-*
+WarningsAsErrors: 'bugprone-*,clang-analyzer-*'
+HeaderFilterRegex: '^(src|include)/'
+AnalyzeTemporaryDtors: true
+CheckOptions:
+  - key: modernize-use-auto.MinTypeNameLength
+    value: '5'
+  - key: cppcoreguidelines-avoid-magic-numbers.IgnoredNumericLiterals
+    value: '0,1,2'
+  - key: cppcoreguidelines-pro-type-member-init.IgnoreArrays
+    value: 'false'
+

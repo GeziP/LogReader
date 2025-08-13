@@ -11,11 +11,12 @@
  */
 
 #include <QApplication>
-#include <QTranslator>
+#include <QDebug>
 #include <QLibraryInfo>
 #include <QMessageBox>
-#include <QDebug>
+#include <QTranslator>
 #include <exception>
+
 #include "ui/logviewer.h"
 #include "utils/languagemanager.h"
 
@@ -41,11 +42,11 @@ void myTerminateHandler()
  *          configures application metadata, initializes the language manager,
  *          and displays the main window.
  */
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     // Set up custom exception handler for better error handling
     std::set_terminate(myTerminateHandler);
-    
+
     // Create Qt application instance
     QApplication a(argc, argv);
 

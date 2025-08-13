@@ -1,10 +1,10 @@
 /**
  * @file logviewer.cpp
  * @brief Implementation of Main Window Interface for LogReader Application
- * @details Contains the complete implementation of LogViewer class methods including
- *          UI setup, log file processing, filtering, searching, and export functionality.
- *          This is the core implementation file that brings together all application
- *          features into a cohesive user interface.
+ * @details Contains the complete implementation of LogViewer class methods
+ * including UI setup, log file processing, filtering, searching, and export
+ * functionality. This is the core implementation file that brings together all
+ * application features into a cohesive user interface.
  * @author GeziP
  * @date 2025-06-27
  * @version 1.0
@@ -12,67 +12,75 @@
  */
 
 #include "logviewer.h"
-#include "exportdialog.h"
-#include <QFile>
-#include <QFileInfo>
-#include <QTextStream>
-#include <QRegularExpression>
-#include <QDateTimeEdit>
+
+#include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
-#include <QPushButton>
-#include <QTreeView>
-#include <QStandardItemModel>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QHeaderView>
-#include <QMessageBox>
+#include <QDateTimeEdit>
+#include <QFile>
 #include <QFileDialog>
-#include <QApplication>
-#include <QMenuBar>
-#include <QToolBar>
-#include <QProgressBar>
+#include <QFileInfo>
 #include <QGroupBox>
+#include <QHBoxLayout>
+#include <QHeaderView>
+#include <QLabel>
+#include <QMenuBar>
+#include <QMessageBox>
+#include <QProgressBar>
+#include <QPushButton>
+#include <QRegularExpression>
 #include <QSet>
+#include <QStandardItemModel>
+#include <QTextStream>
+#include <QToolBar>
+#include <QTreeView>
+#include <QVBoxLayout>
+
+#include "exportdialog.h"
+#include "logfilterproxymodel.h"
+#include "logtablemodel.h"
+#include "highlightdelegate.h"
+#include "../core/logloader.h"
+#include <QThread>
+#include <QMetaType>
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QTextCodec>
 #endif
-#include <QStyleFactory>
-#include <QFont>
-#include <QStatusBar>
-#include <QScrollArea>
-#include <QSizePolicy>
-#include <QLineEdit>
 #include <QBrush>
-#include <QSplitter>
-#include <QModelIndex>
-#include <QStyledItemDelegate>
-#include <QFontMetrics>
 #include <QDebug>
 #include <QDesktopServices>
-#include <QUrl>
 #include <QEvent>
+#include <QFont>
+#include <QFontMetrics>
+#include <QLineEdit>
+#include <QModelIndex>
 #include <QMouseEvent>
+#include <QScrollArea>
+#include <QSizePolicy>
+#include <QSplitter>
+#include <QStatusBar>
+#include <QStyleFactory>
+#include <QStyledItemDelegate>
+#include <QUrl>
 
 /**
  * @brief Constructor for LogViewer main window
  * @param parent Parent widget for window management
- * @details Initializes the main application window, sets up the complete user interface,
- *          configures signal-slot connections, and establishes the language change callback.
- *          This is the primary entry point for the application's main functionality.
+ * @details Initializes the main application window, sets up the complete user
+ * interface, configures signal-slot connections, and establishes the language
+ * change callback. This is the primary entry point for the application's main
+ * functionality.
  */
-LogViewer::LogViewer(QWidget *parent)
-    : QMainWindow(parent),
-      logModel(nullptr),
-      currentSearchIndex(-1)
+LogViewer::LogViewer(QWidget* parent)
+    : QMainWindow(parent), sourceModel(nullptr), proxyModel(nullptr), highlightDelegate(nullptr), currentSearchIndex(-1)
 {
     setupUI();
-    
+
     // Set up language manager callback function for dynamic UI updates
-    LanguageManager::instance().setLanguageChangeCallback([this](LanguageManager::Language language) {
-        this->onLanguageManagerChanged(language);
-    });
+    LanguageManager::instance().setLanguageChangeCallback(
+        [this](LanguageManager::Language language) {
+            this->onLanguageManagerChanged(language);
+        });
 }
 
 /**
@@ -160,22 +168,22 @@ void LogViewer::setupUI()
 
     qApp->setStyleSheet(qss);
 
-    QWidget *centralWidget = new QWidget(this);
+    QWidget* centralWidget = new QWidget(this);
     setCentralWidget(centralWidget);
 
     // Create filter area container
     filterWidget = new QWidget(this);
 
     // Time range selection controls
-    QLabel *startLabel = new QLabel(tr("开始时间:"), this);
+    QLabel* startLabel = new QLabel(tr("开始时间:"), this);
     startTimeEdit = new QDateTimeEdit(this);
     startTimeEdit->setDisplayFormat("yyyy-MM-dd HH:mm:ss");
 
-    QLabel *endLabel = new QLabel(tr("结束时间:"), this);
+    QLabel* endLabel = new QLabel(tr("结束时间:"), this);
     endTimeEdit = new QDateTimeEdit(this);
     endTimeEdit->setDisplayFormat("yyyy-MM-dd HH:mm:ss");
 
-    QHBoxLayout *timeLayout = new QHBoxLayout();
+    QHBoxLayout* timeLayout = new QHBoxLayout();
     timeLayout->addWidget(startLabel);
     timeLayout->addWidget(startTimeEdit);
     timeLayout->addWidget(endLabel);
@@ -187,15 +195,15 @@ void LogViewer::setupUI()
 
     // Log level selection controls
     levelGroupBox = new QGroupBox(tr("日志等级"), this);
-    QHBoxLayout *levelLayout = new QHBoxLayout();
+    QHBoxLayout* levelLayout = new QHBoxLayout();
     levelGroupBox->setLayout(levelLayout);
 
     // Create log level checkboxes with sorted order
     QStringList levels = {"DEBUG", "ERROR", "INFO", "WARN"};
     levels.sort(Qt::CaseInsensitive); // Sort alphabetically
 
-    for (const QString &level : levels) {
-        QCheckBox *checkBox = new QCheckBox(level, this);
+    for (const QString& level : levels) {
+        QCheckBox* checkBox = new QCheckBox(level, this);
         checkBox->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
         levelCheckBoxes.append(checkBox);
         levelLayout->addWidget(checkBox);
@@ -210,17 +218,19 @@ void LogViewer::setupUI()
     // Add "Select All" and "Deselect All" buttons for module selection
     selectAllModulesButton = new QPushButton(tr("全选"), this);
     deselectAllModulesButton = new QPushButton(tr("全不选"), this);
-    connect(selectAllModulesButton, &QPushButton::clicked, this, &LogViewer::selectAllModules);
-    connect(deselectAllModulesButton, &QPushButton::clicked, this, &LogViewer::deselectAllModules);
+    connect(selectAllModulesButton, &QPushButton::clicked, this,
+            &LogViewer::selectAllModules);
+    connect(deselectAllModulesButton, &QPushButton::clicked, this,
+            &LogViewer::deselectAllModules);
 
-    QHBoxLayout *moduleButtonLayout = new QHBoxLayout();
+    QHBoxLayout* moduleButtonLayout = new QHBoxLayout();
     moduleButtonLayout->addWidget(selectAllModulesButton);
     moduleButtonLayout->addWidget(deselectAllModulesButton);
     moduleButtonLayout->addStretch();
 
     // Add scroll area to support cases with many modules
-    QScrollArea *moduleScrollArea = new QScrollArea(this);
-    QWidget *moduleContainer = new QWidget(this);
+    QScrollArea* moduleScrollArea = new QScrollArea(this);
+    QWidget* moduleContainer = new QWidget(this);
     moduleLayout->setContentsMargins(5, 5, 5, 5);
     moduleContainer->setLayout(moduleLayout);
     moduleScrollArea->setWidgetResizable(true);
@@ -234,32 +244,33 @@ void LogViewer::setupUI()
     moduleScrollArea->setFixedHeight(60); // Adjust height as needed
 
     moduleGroupBox = new QGroupBox(tr("模块选择"), this);
-    QVBoxLayout *moduleGroupLayout = new QVBoxLayout();
+    QVBoxLayout* moduleGroupLayout = new QVBoxLayout();
     moduleGroupLayout->addLayout(moduleButtonLayout); // Add button layout
     moduleGroupLayout->addWidget(moduleScrollArea);
     moduleGroupBox->setLayout(moduleGroupLayout);
 
     // Encoding selection
-    QLabel *encodingLabel = new QLabel(tr("文件编码:"), this);
+    QLabel* encodingLabel = new QLabel(tr("文件编码:"), this);
     encodingComboBox = new QComboBox(this);
     encodingComboBox->addItems({"UTF-8", "GB18030", "GB2312"});
     encodingComboBox->setCurrentText("UTF-8");
 
-    QHBoxLayout *encodingLayout = new QHBoxLayout();
+    QHBoxLayout* encodingLayout = new QHBoxLayout();
     encodingLayout->addWidget(encodingLabel);
     encodingLayout->addWidget(encodingComboBox);
     encodingLayout->addStretch();
 
     // Filter button
-    QPushButton *filterButton = new QPushButton(tr("筛选"), this);
-    connect(filterButton, &QPushButton::clicked, this, &LogViewer::onFilterButtonClicked);
+    QPushButton* filterButton = new QPushButton(tr("筛选"), this);
+    connect(filterButton, &QPushButton::clicked, this,
+            &LogViewer::onFilterButtonClicked);
 
-    QHBoxLayout *filterLayout = new QHBoxLayout();
+    QHBoxLayout* filterLayout = new QHBoxLayout();
     filterLayout->addStretch();
     filterLayout->addWidget(filterButton);
 
     // Combine filter area
-    QVBoxLayout *filterAreaLayout = new QVBoxLayout();
+    QVBoxLayout* filterAreaLayout = new QVBoxLayout();
     filterAreaLayout->addWidget(timeGroupBox);
     filterAreaLayout->addWidget(levelGroupBox);
     filterAreaLayout->addWidget(moduleGroupBox);
@@ -271,7 +282,7 @@ void LogViewer::setupUI()
     logTreeView = new QTreeView(this);
     logTreeView->setAlternatingRowColors(true);
     logTreeView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    logTreeView->setUniformRowHeights(false);
+    logTreeView->setUniformRowHeights(true);
     logTreeView->setHeaderHidden(false);
     logTreeView->setSelectionBehavior(QAbstractItemView::SelectRows);
     logTreeView->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -285,28 +296,33 @@ void LogViewer::setupUI()
     logTreeView->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
     // Connect double-click signal
-    connect(logTreeView, &QTreeView::doubleClicked, this, &LogViewer::onLogItemDoubleClicked);
+    connect(logTreeView, &QTreeView::doubleClicked, this,
+            &LogViewer::onLogItemDoubleClicked);
     // In setupUI or constructor, connect expand signal
-    connect(logTreeView, &QTreeView::expanded, this, &LogViewer::onTreeItemExpanded);
+    connect(logTreeView, &QTreeView::expanded, this,
+            &LogViewer::onTreeItemExpanded);
 
     // Search line edit and buttons
     searchLineEdit = new QLineEdit(this);
     searchLineEdit->setPlaceholderText(tr("搜索..."));
-    connect(searchLineEdit, &QLineEdit::textChanged, this, &LogViewer::onSearchTextChanged);
+    connect(searchLineEdit, &QLineEdit::textChanged, this,
+            &LogViewer::onSearchTextChanged);
 
     searchPreviousButton = new QPushButton(tr("上一条"), this);
     searchNextButton = new QPushButton(tr("下一条"), this);
-    connect(searchPreviousButton, &QPushButton::clicked, this, &LogViewer::onSearchPrevious);
-    connect(searchNextButton, &QPushButton::clicked, this, &LogViewer::onSearchNext);
+    connect(searchPreviousButton, &QPushButton::clicked, this,
+            &LogViewer::onSearchPrevious);
+    connect(searchNextButton, &QPushButton::clicked, this,
+            &LogViewer::onSearchNext);
 
-    QHBoxLayout *searchLayout = new QHBoxLayout();
+    QHBoxLayout* searchLayout = new QHBoxLayout();
     searchLayout->addWidget(searchLineEdit);
     searchLayout->addWidget(searchPreviousButton);
     searchLayout->addWidget(searchNextButton);
     searchLayout->addStretch();
 
     // Main layout
-    QVBoxLayout *mainLayout = new QVBoxLayout();
+    QVBoxLayout* mainLayout = new QVBoxLayout();
     mainLayout->setSpacing(10);
     mainLayout->setContentsMargins(10, 10, 10, 10);
 
@@ -322,51 +338,62 @@ void LogViewer::setupUI()
     centralWidget->setLayout(mainLayout);
 
     // Menu bar
-    QMenuBar *menuBar = new QMenuBar(this);
-    QMenu *fileMenu = menuBar->addMenu(tr("文件"));
-    openAction = fileMenu->addAction(QIcon(":/icons/open.png"), tr("打开日志文件"));
+    QMenuBar* menuBar = new QMenuBar(this);
+    QMenu* fileMenu = menuBar->addMenu(tr("文件"));
+    openAction =
+        fileMenu->addAction(QIcon(":/icons/open.png"), tr("打开日志文件"));
     connect(openAction, &QAction::triggered, this, &LogViewer::openLogFile);
     fileMenu->addSeparator();
-    exportAction = fileMenu->addAction(QIcon(":/icons/export.png"), tr("导出筛选结果"));
+    exportAction =
+        fileMenu->addAction(QIcon(":/icons/export.png"), tr("导出筛选结果"));
     exportAction->setEnabled(false); // Initially disabled
-    connect(exportAction, &QAction::triggered, this, &LogViewer::onExportFiltered);
+    connect(exportAction, &QAction::triggered, this,
+            &LogViewer::onExportFiltered);
     setMenuBar(menuBar);
 
     // Tool bar
-    QToolBar *toolBar = addToolBar(tr("工具栏"));
+    QToolBar* toolBar = addToolBar(tr("工具栏"));
     toolBar->addAction(openAction);
     toolBar->addAction(exportAction);
     filterAction = toolBar->addAction(QIcon(":/icons/filter.png"), tr("筛选"));
-    connect(filterAction, &QAction::triggered, this, &LogViewer::onFilterButtonClicked);
+    connect(filterAction, &QAction::triggered, this,
+            &LogViewer::onFilterButtonClicked);
 
     // Show/hide filter area button
-    toggleFilterAction = toolBar->addAction(QIcon(":/icons/toggle.png"), tr("显示/隐藏筛选区域"));
-    connect(toggleFilterAction, &QAction::triggered, this, &LogViewer::toggleFilterArea);
+    toggleFilterAction = toolBar->addAction(QIcon(":/icons/toggle.png"),
+                                            tr("显示/隐藏筛选区域"));
+    connect(toggleFilterAction, &QAction::triggered, this,
+            &LogViewer::toggleFilterArea);
 
     // Add separator
     toolBar->addSeparator();
-    
+
     // Language switch widget
-    QLabel *languageLabel = new QLabel(tr("语言:"), this);
+    QLabel* languageLabel = new QLabel(tr("语言:"), this);
     languageComboBox = new QComboBox(this);
-    
+
     // Initialize language options
-    QMap<LanguageManager::Language, QString> supportedLanguages = LanguageManager::instance().getSupportedLanguages();
-    for (auto it = supportedLanguages.constBegin(); it != supportedLanguages.constEnd(); ++it) {
+    QMap<LanguageManager::Language, QString> supportedLanguages =
+        LanguageManager::instance().getSupportedLanguages();
+    for (auto it = supportedLanguages.constBegin();
+         it != supportedLanguages.constEnd(); ++it) {
         languageComboBox->addItem(it.value(), static_cast<int>(it.key()));
     }
-    
+
     // Set current language
-    LanguageManager::Language currentLang = LanguageManager::instance().getCurrentLanguage();
-    int currentIndex = languageComboBox->findData(static_cast<int>(currentLang));
+    LanguageManager::Language currentLang =
+        LanguageManager::instance().getCurrentLanguage();
+    int currentIndex =
+        languageComboBox->findData(static_cast<int>(currentLang));
     if (currentIndex >= 0) {
         languageComboBox->setCurrentIndex(currentIndex);
     }
-    
+
     // Connect signal
-    connect(languageComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &LogViewer::onLanguageChanged);
-    
+    connect(languageComboBox,
+            QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            &LogViewer::onLanguageChanged);
+
     toolBar->addWidget(languageLabel);
     toolBar->addWidget(languageComboBox);
 
@@ -374,24 +401,36 @@ void LogViewer::setupUI()
     progressBar = new QProgressBar(this);
     progressBar->setVisible(false);
     statusBar()->addPermanentWidget(progressBar);
-    
+
     // Create GitHub link label
     githubLinkLabel = new QLabel(this);
     githubLinkLabel->setText("⭐ GitHub");
-    githubLinkLabel->setStyleSheet("color: #0969da; text-decoration: underline; cursor: pointer; padding: 2px 6px;");
+    githubLinkLabel->setStyleSheet(
+        "color: #0969da; text-decoration: underline; cursor: pointer; padding: "
+        "2px 6px;");
     githubLinkLabel->setToolTip(tr("点击访问GitHub项目页面并给我们点赞"));
     githubLinkLabel->installEventFilter(this);
     statusBar()->addPermanentWidget(githubLinkLabel);
-    
+
     statusBar()->showMessage(tr("就绪"));
 
+    // Initialize models
+    sourceModel = new LogTableModel(this);
+    proxyModel = new LogFilterProxyModel(this);
+    proxyModel->setSourceModel(sourceModel);
+    logTreeView->setModel(proxyModel);
+    // Delegate for highlight on content column
+    highlightDelegate = new HighlightDelegate(this);
+    logTreeView->setItemDelegateForColumn(LogTableModel::ColumnMessage, highlightDelegate);
 }
 
 void LogViewer::openLogFile()
 {
     // Use remembered directory as default path
     QString defaultDir = AppSettings::instance().getRecentLogDir();
-    QString filePath = QFileDialog::getOpenFileName(this, tr("打开日志文件"), defaultDir, tr("Log Files (*.log *.txt);;All Files (*)"));
+    QString filePath = QFileDialog::getOpenFileName(
+        this, tr("打开日志文件"), defaultDir,
+        tr("Log Files (*.log *.txt);;All Files (*)"));
     if (!filePath.isEmpty()) {
         loadLogFile(filePath);
         // Save new directory path
@@ -407,83 +446,69 @@ void LogViewer::loadLogFile(const QString& filePath)
 
     // Show progress bar
     progressBar->setVisible(true);
-    progressBar->setRange(0, 0); // Indeterminate mode
+    progressBar->setRange(0, 100);
+    progressBar->setValue(0);
 
-    allLogs = parseLogFile(filePath, encoding);
+    // Clear previous data
+    allLogs.clear();
+    sourceModel->clear();
 
-    // Hide progress bar after loading is complete
-    progressBar->setVisible(false);
+    // Background loader
+    QThread* thread = new QThread(this);
+    LogLoader* loader = new LogLoader(filePath, encoding, 5000);
+    qRegisterMetaType<LogEntry>("LogEntry");
+    qRegisterMetaType<QVector<LogEntry>>("QVector<LogEntry>");
+    loader->moveToThread(thread);
 
-    if (allLogs.isEmpty()) {
-        QMessageBox::warning(this, tr("错误"), tr("日志文件为空或无法解析。"));
-        return;
-    }
-
-    // Initialize start and end time
-    QDateTime minTime = allLogs.first().timestamp;
-    QDateTime maxTime = allLogs.first().timestamp;
-    QSet<QString> moduleSet;
-    QSet<QString> levelSet;
-    for (const LogEntry &entry : allLogs) {
-        if (entry.timestamp.isValid()) {
-            if (entry.timestamp < minTime)
-                minTime = entry.timestamp;
-            if (entry.timestamp > maxTime)
-                maxTime = entry.timestamp;
+    connect(thread, &QThread::started, loader, &LogLoader::process);
+    // Compatibility: some Qt signals might differ; ensure progress() is used
+    connect(loader, &LogLoader::progress, progressBar, &QProgressBar::setValue);
+    connect(loader, &LogLoader::error, this, [this](const QString& msg) {
+        QMessageBox::warning(this, tr("错误"), msg);
+    });
+    connect(loader, &LogLoader::chunkReady, this, [this](QVector<LogEntry> chunk) {
+        // Append to in-memory cache and model
+        for (const auto& e : chunk) allLogs.append(e);
+        sourceModel->appendRows(chunk);
+    });
+    connect(loader, &LogLoader::summaryReady, this, [this](const QDateTime& minTime, const QDateTime& maxTime, const QStringList& modules, const QStringList& levels) {
+        startTimeEdit->setDateTime(minTime);
+        endTimeEdit->setDateTime(maxTime);
+        allModules = modules;
+        allLevels = levels;
+        // Rebuild module checkboxes UI
+        QLayoutItem* child;
+        while ((child = moduleLayout->takeAt(0)) != nullptr) {
+            QWidget* widget = child->widget();
+            if (widget) widget->deleteLater();
+            delete child;
         }
-        moduleSet.insert(entry.module);
-        levelSet.insert(entry.level);
-    }
-
-    startTimeEdit->setDateTime(minTime);
-    endTimeEdit->setDateTime(maxTime);
-
-    // Update module list
-    allModules = moduleSet.values();
-    allModules.sort(Qt::CaseInsensitive); // Sort alphabetically
-    allLevels = levelSet.values();
-    allLevels.sort(Qt::CaseInsensitive); // Sort alphabetically
-
-    // Clear existing module selection checkboxes
-    QLayoutItem *child;
-    while ((child = moduleLayout->takeAt(0)) != nullptr) {
-        QWidget *widget = child->widget();
-        if (widget) {
-            widget->deleteLater(); // Safely delete widget
+        moduleCheckBoxes.clear();
+        for (const QString& module : allModules) {
+            QCheckBox* checkBox = new QCheckBox(module, this);
+            checkBox->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+            moduleCheckBoxes.append(checkBox);
+            moduleLayout->addWidget(checkBox);
         }
-        delete child; // Delete layout item
-    }
-    moduleCheckBoxes.clear();
+        moduleLayout->addStretch();
+        for (QCheckBox* checkBox : levelCheckBoxes) checkBox->setChecked(true);
+        for (QCheckBox* checkBox : moduleCheckBoxes) checkBox->setChecked(true);
+    });
+    connect(loader, &LogLoader::finished, this, [this, loader, thread, filePath]() {
+        progressBar->setVisible(false);
+        exportAction->setEnabled(true);
+        statusBar()->showMessage(tr("已加载文件：%1，日志条目数：%2").arg(filePath).arg(allLogs.size()));
+        loader->deleteLater();
+        thread->quit();
+        thread->wait();
+        thread->deleteLater();
+    });
 
-    // Add new module selection checkboxes
-    for (const QString &module : allModules) {
-        QCheckBox *checkBox = new QCheckBox(module, this);
-        checkBox->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-        moduleCheckBoxes.append(checkBox);
-        moduleLayout->addWidget(checkBox);
-    }
-
-    // Optional: Add flexible space for left alignment
-    moduleLayout->addStretch();
-
-    // Default select all levels and modules
-    for (QCheckBox *checkBox : levelCheckBoxes) {
-        checkBox->setChecked(true);
-    }
-    for (QCheckBox *checkBox : moduleCheckBoxes) {
-        checkBox->setChecked(true);
-    }
-
-    // Display all logs
-    displayLogs(allLogs);
-    
-    // Enable export functionality
-    exportAction->setEnabled(true);
-
-    statusBar()->showMessage(tr("已加载文件：%1，日志条目数：%2").arg(filePath).arg(allLogs.size()));
+    thread->start();
 }
 
-QList<LogEntry> LogViewer::parseLogFile(const QString& filePath, const QString& encoding)
+QList<LogEntry> LogViewer::parseLogFile(const QString& filePath,
+                                        const QString& encoding)
 {
     QList<LogEntry> logEntries;
     QFile file(filePath);
@@ -495,9 +520,10 @@ QList<LogEntry> LogViewer::parseLogFile(const QString& filePath, const QString& 
     QTextStream in(&file);
     // Process Chinese encoding
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-    QTextCodec *codec = QTextCodec::codecForName(encoding.toUtf8());
+    QTextCodec* codec = QTextCodec::codecForName(encoding.toUtf8());
     if (!codec) {
-        QMessageBox::warning(this, tr("错误"), tr("不支持的编码格式：%1").arg(encoding));
+        QMessageBox::warning(this, tr("错误"),
+                             tr("不支持的编码格式：%1").arg(encoding));
         return logEntries;
     }
     in.setCodec(codec);
@@ -505,20 +531,23 @@ QList<LogEntry> LogViewer::parseLogFile(const QString& filePath, const QString& 
     in.setEncoding(QStringConverter::Utf8);
 #endif
 
-    QRegularExpression regex(R"(\[(.*?)\] \[(.*?)\] \[(.*?)\] : (.*))");
+    // More tolerant spacing: allow variable spaces around tokens and colon
+    QRegularExpression regex(R"((?:\[\s*(.*?)\s*\])\s*(?:\[\s*(.*?)\s*\])\s*(?:\[\s*(.*?)\s*\])\s*:\s*(.*)$)");
     while (!in.atEnd()) {
         QString line = in.readLine();
         QRegularExpressionMatch match = regex.match(line);
         if (match.hasMatch()) {
             LogEntry entry;
-            entry.timestamp = QDateTime::fromString(match.captured(1), "yyyy-MM-dd HH:mm:ss.zzz");
+            entry.timestamp = QDateTime::fromString(match.captured(1),
+                                                    "yyyy-MM-dd HH:mm:ss.zzz");
             if (!entry.timestamp.isValid()) {
                 // Try other format
-                entry.timestamp = QDateTime::fromString(match.captured(1), "yyyy-MM-dd HH:mm:ss");
+                entry.timestamp = QDateTime::fromString(match.captured(1),
+                                                        "yyyy-MM-dd HH:mm:ss");
             }
             entry.level = match.captured(2).trimmed();
             entry.module = match.captured(3).trimmed();
-            entry.content = match.captured(4);
+            entry.message = match.captured(4);
             logEntries.append(entry);
         }
     }
@@ -530,19 +559,20 @@ void LogViewer::onFilterButtonClicked()
     QDateTime startTime = startTimeEdit->dateTime();
     QDateTime endTime = endTimeEdit->dateTime();
     QStringList selectedLevels;
-    for (QCheckBox *checkBox : levelCheckBoxes) {
+    for (QCheckBox* checkBox : levelCheckBoxes) {
         if (checkBox->isChecked()) {
             selectedLevels.append(checkBox->text());
         }
     }
     QStringList selectedModules;
-    for (QCheckBox *checkBox : moduleCheckBoxes) {
+    for (QCheckBox* checkBox : moduleCheckBoxes) {
         if (checkBox->isChecked()) {
             selectedModules.append(checkBox->text());
         }
     }
     if (selectedLevels.isEmpty() || selectedModules.isEmpty()) {
-        QMessageBox::warning(this, tr("错误"), tr("请至少选择一个日志等级和模块。"));
+        QMessageBox::warning(this, tr("错误"),
+                             tr("请至少选择一个日志等级和模块。"));
         return;
     }
 
@@ -550,14 +580,17 @@ void LogViewer::onFilterButtonClicked()
     progressBar->setVisible(true);
     progressBar->setRange(0, 0); // Indeterminate mode
 
-    QList<LogEntry> filteredLogs = filterLogs(allLogs, startTime, endTime, selectedLevels, selectedModules);
+    if (proxyModel) {
+        proxyModel->setTimeRange(startTime, endTime);
+        proxyModel->setLevels(selectedLevels);
+        proxyModel->setModules(selectedModules);
+    }
 
     // Hide progress bar after filtering is complete
     progressBar->setVisible(false);
 
-    displayLogs(filteredLogs);
-
-    statusBar()->showMessage(tr("筛选完成，日志条目数：%1").arg(filteredLogs.size()));
+    statusBar()->showMessage(
+        tr("筛选完成，日志条目数：%1").arg(proxyModel ? proxyModel->rowCount() : 0));
 }
 
 QList<LogEntry> LogViewer::filterLogs(const QList<LogEntry>& logs,
@@ -568,10 +601,10 @@ QList<LogEntry> LogViewer::filterLogs(const QList<LogEntry>& logs,
 {
     QList<LogEntry> filteredLogs;
     for (const auto& entry : logs) {
-        if (!entry.timestamp.isValid()) continue;
+        if (!entry.timestamp.isValid())
+            continue;
         if (entry.timestamp >= startTime && entry.timestamp <= endTime &&
-            levels.contains(entry.level) &&
-            modules.contains(entry.module)) {
+            levels.contains(entry.level) && modules.contains(entry.module)) {
             filteredLogs.append(entry);
         }
     }
@@ -580,51 +613,16 @@ QList<LogEntry> LogViewer::filterLogs(const QList<LogEntry>& logs,
 
 void LogViewer::displayLogs(const QList<LogEntry>& logs)
 {
-    if (logModel) {
-        delete logModel;
-    }
-    logModel = new QStandardItemModel(this);
-    QStringList headers = { tr("行号"), tr("时间"), tr("等级"), tr("模块"), tr("内容") };
-    logModel->setHorizontalHeaderLabels(headers);
-
-    // Directly display filtered logs without complex matching and folding logic
-    for (int i = 0; i < logs.size(); ++i) {
-        const LogEntry& entry = logs[i];
-        
-        QList<QStandardItem*> rowItems;
-        QStandardItem *lineNumberItem = new QStandardItem(QString::number(i + 1));
-        lineNumberItem->setTextAlignment(Qt::AlignCenter);
-        QStandardItem *timestampItem = new QStandardItem(entry.timestamp.toString("yyyy-MM-dd HH:mm:ss.zzz"));
-        QStandardItem *levelItem = new QStandardItem(entry.level);
-        QStandardItem *moduleItem = new QStandardItem(entry.module);
-        QStandardItem *contentItem = new QStandardItem(entry.content);
-
-        rowItems << lineNumberItem << timestampItem << levelItem << moduleItem << contentItem;
-        logModel->appendRow(rowItems);
-    }
-
-    // Set model
-    logTreeView->setModel(logModel);
-
-    // Disable automatic column stretch
+    Q_UNUSED(logs)
+    // Model already set in setup; just configure header behavior
     logTreeView->header()->setStretchLastSection(false);
-
-    // Set all columns' resizeMode to Interactive to allow user to adjust
-    for (int i = 0; i < logModel->columnCount(); ++i) {
+    for (int i = 0; i < LogTableModel::ColumnCount; ++i) {
         logTreeView->header()->setSectionResizeMode(i, QHeaderView::Interactive);
     }
-
-    // Automatically adjust column width to fit content
-    for (int i = 0; i < logModel->columnCount(); ++i) {
-        logTreeView->resizeColumnToContents(i);
-    }
-
-    // Set minimum width for columns to prevent too narrow
+    // Avoid full resizeColumnToContents on large data; set sensible defaults
     logTreeView->header()->setMinimumSectionSize(50);
-
-    // Set line number column width
     logTreeView->header()->setSectionResizeMode(0, QHeaderView::Fixed);
-    logTreeView->header()->resizeSection(0, 80); // Increase line number column width to 80 pixels
+    logTreeView->header()->resizeSection(0, 80);
 }
 
 void LogViewer::toggleFilterArea()
@@ -640,19 +638,19 @@ void LogViewer::toggleFilterArea()
 
 void LogViewer::selectAllModules()
 {
-    for (QCheckBox *checkBox : moduleCheckBoxes) {
+    for (QCheckBox* checkBox : moduleCheckBoxes) {
         checkBox->setChecked(true);
     }
 }
 
 void LogViewer::deselectAllModules()
 {
-    for (QCheckBox *checkBox : moduleCheckBoxes) {
+    for (QCheckBox* checkBox : moduleCheckBoxes) {
         checkBox->setChecked(false);
     }
 }
 
-void LogViewer::onSearchTextChanged(const QString &text)
+void LogViewer::onSearchTextChanged(const QString& text)
 {
     currentSearchText = text;
     highlightSearchMatches();
@@ -660,42 +658,47 @@ void LogViewer::onSearchTextChanged(const QString &text)
 
 void LogViewer::highlightSearchMatches()
 {
-    // Disable interface updates
     logTreeView->setUpdatesEnabled(false);
 
-    clearSearchHighlights();
+    // Update delegate highlight text
+    if (highlightDelegate)
+        highlightDelegate->setHighlightText(currentSearchText);
+
     searchResults.clear();
     currentSearchIndex = -1;
 
-    if (currentSearchText.isEmpty() || !logModel) {
-        // Enable interface updates
+    if (currentSearchText.isEmpty() || !proxyModel) {
         logTreeView->setUpdatesEnabled(true);
+        logTreeView->viewport()->update();
         return;
     }
 
-    // Search from root node
-    for (int i = 0; i < logModel->rowCount(); ++i) {
-        QStandardItem *item = logModel->item(i);
-        searchInItem(item);
+    // Linear scan on content column for matches (proxy model)
+    int rows = proxyModel->rowCount();
+    for (int r = 0; r < rows; ++r) {
+        QModelIndex contentIdx = proxyModel->index(r, LogTableModel::ColumnMessage);
+        QString text = proxyModel->data(contentIdx, Qt::DisplayRole).toString();
+        if (text.contains(currentSearchText, Qt::CaseInsensitive)) {
+            searchResults.append(r);
+        }
     }
 
-    // Enable interface updates
     logTreeView->setUpdatesEnabled(true);
+    logTreeView->viewport()->update();
 
-    // Jump to first match
     if (!searchResults.isEmpty()) {
         currentSearchIndex = 0;
-        QStandardItem *item = searchResults[currentSearchIndex];
-        expandToItem(item);
-        QModelIndex index = item->index();
+        int row = searchResults[currentSearchIndex];
+        QModelIndex index = proxyModel->index(row, 0);
         logTreeView->setCurrentIndex(index);
         logTreeView->scrollTo(index, QAbstractItemView::PositionAtCenter);
     }
 }
 
-void LogViewer::expandToItem(QStandardItem *item)
+void LogViewer::expandToItem(QStandardItem* item)
 {
-    if (!item) return;
+    if (!item)
+        return;
     QModelIndex index = item->index();
     QModelIndex parentIndex = index.parent();
     while (parentIndex.isValid()) {
@@ -704,126 +707,74 @@ void LogViewer::expandToItem(QStandardItem *item)
     }
 }
 
-void LogViewer::searchInItem(QStandardItem *item)
+void LogViewer::searchInItem(QStandardItem* item)
 {
-    if (!item) return;
-
-    bool matched = false;
-
-    // Check content column (index 4)
-    QStandardItem *contentItem = item->child(item->row(), 4);
-    if (!contentItem) {
-        contentItem = item->model()->itemFromIndex(item->index().sibling(item->row(), 4));
-    }
-    if (contentItem && contentItem->text().contains(currentSearchText, Qt::CaseInsensitive)) {
-        matched = true;
-        contentItem->setBackground(QBrush(Qt::yellow));
-    }
-
-    // If matched, add to result list
-    if (matched) {
-        searchResults.append(item);
-    }
-
-    // Recursive search for child items
-    int childCount = item->rowCount();
-    for (int i = 0; i < childCount; ++i) {
-        QStandardItem *childItem = item->child(i);
-        searchInItem(childItem);
-    }
+    Q_UNUSED(item)
 }
 
-void LogViewer::clearHighlightsInItem(QStandardItem *item)
+void LogViewer::clearHighlightsInItem(QStandardItem* item)
 {
-    if (!item) return;
-
-    // Clear current item background
-    for (int col = 0; col < item->columnCount(); ++col) {
-        QStandardItem *cellItem = item->child(item->row(), col);
-        if (!cellItem) {
-            cellItem = item->model()->itemFromIndex(item->index().sibling(item->row(), col));
-        }
-        if (cellItem) {
-            cellItem->setBackground(QBrush(Qt::NoBrush));
-        }
-    }
-
-    // Recursive processing for child items
-    int childCount = item->rowCount();
-    for (int i = 0; i < childCount; ++i) {
-        QStandardItem *childItem = item->child(i);
-        clearHighlightsInItem(childItem);
-    }
+    Q_UNUSED(item)
 }
 
 void LogViewer::clearSearchHighlights()
 {
-    if (!logModel) return;
+    if (!proxyModel)
+        return;
 
-    // Recursively clear all highlighted items
-    for (int i = 0; i < logModel->rowCount(); ++i) {
-        QStandardItem *item = logModel->item(i);
-        clearHighlightsInItem(item);
-    }
+    // With delegate highlighter, clearing becomes no-op
 }
 
 void LogViewer::onSearchPrevious()
 {
-    if (searchResults.isEmpty()) return;
+    if (searchResults.isEmpty())
+        return;
 
     currentSearchIndex--;
     if (currentSearchIndex < 0) {
         currentSearchIndex = searchResults.size() - 1;
     }
-    QStandardItem *item = searchResults[currentSearchIndex];
-    expandToItem(item);
-    QModelIndex index = item->index();
+    int row = searchResults[currentSearchIndex];
+    QModelIndex index = proxyModel->index(row, 0);
     logTreeView->setCurrentIndex(index);
     logTreeView->scrollTo(index, QAbstractItemView::PositionAtCenter);
 }
 
 void LogViewer::onSearchNext()
 {
-    if (searchResults.isEmpty()) return;
+    if (searchResults.isEmpty())
+        return;
 
     currentSearchIndex++;
     if (currentSearchIndex >= searchResults.size()) {
         currentSearchIndex = 0;
     }
-    QStandardItem *item = searchResults[currentSearchIndex];
-    expandToItem(item);
-    QModelIndex index = item->index();
+    int row = searchResults[currentSearchIndex];
+    QModelIndex index = proxyModel->index(row, 0);
     logTreeView->setCurrentIndex(index);
     logTreeView->scrollTo(index, QAbstractItemView::PositionAtCenter);
 }
 
-void LogViewer::onLogItemDoubleClicked(const QModelIndex &index)
+void LogViewer::onLogItemDoubleClicked(const QModelIndex& index)
 {
-    if (!index.isValid()) return;
-
-    QModelIndex sourceIndex = index;
-    // If it's a collapsed item, get its child item
-    if (logModel->hasChildren(index)) {
-        sourceIndex = logModel->index(0, 0, index);
-    }
+    if (!index.isValid())
+        return;
 
     QString details;
-    for (int col = 0; col < logModel->columnCount(); ++col) {
-        QString header = logModel->headerData(col, Qt::Horizontal).toString();
-        QString data = logModel->data(sourceIndex.sibling(sourceIndex.row(), col)).toString();
+    int cols = proxyModel->columnCount();
+    for (int col = 0; col < cols; ++col) {
+        QString header = proxyModel->headerData(col, Qt::Horizontal).toString();
+        QString data = proxyModel->data(index.sibling(index.row(), col)).toString();
         details += QString("%1: %2\n").arg(header).arg(data);
     }
 
     QMessageBox::information(this, tr("日志详情"), details);
 }
 
-void LogViewer::onTreeItemExpanded(const QModelIndex &index)
+void LogViewer::onTreeItemExpanded(const QModelIndex& index)
 {
     Q_UNUSED(index) // Avoid unused parameter warning
-    // Adjust all columns' width to fit content
-    for (int i = 0; i < logModel->columnCount(); ++i) {
-        logTreeView->resizeColumnToContents(i);
-    }
+    // Avoid expensive full auto-resize on expand; do nothing here
 }
 
 void LogViewer::onExportFiltered()
@@ -832,49 +783,53 @@ void LogViewer::onExportFiltered()
         QMessageBox::information(this, tr("提示"), tr("没有日志数据可以导出"));
         return;
     }
-    
+
     // Get current filtered logs
     QList<LogEntry> filteredLogs = getCurrentFilteredLogs();
-    
+
     if (filteredLogs.isEmpty()) {
-        QMessageBox::information(this, tr("提示"), tr("当前筛选条件下没有日志数据"));
+        QMessageBox::information(this, tr("提示"),
+                                 tr("当前筛选条件下没有日志数据"));
         return;
     }
-    
+
     // Show export dialog
     ExportDialog dialog(this);
     dialog.setLogCount(filteredLogs.size());
-    
+
     if (dialog.exec() == QDialog::Accepted) {
         ExportConfig config = dialog.getExportConfig();
-        
+
         // Create exporter and execute export
         LogExporter* exporter = new LogExporter(this);
-        
+
         // Connect progress signal
-        connect(exporter, &LogExporter::progressChanged, [this](int percentage) {
-            progressBar->setValue(percentage);
-        });
-        
-        connect(exporter, &LogExporter::formatExported, [this](const QString& format, const QString& filePath) {
-            statusBar()->showMessage(tr("已导出 %1 格式到: %2").arg(format).arg(filePath), 3000);
-        });
-        
-        connect(exporter, &LogExporter::exportFinished, [this, exporter](bool success, const QString& message) {
-            progressBar->setVisible(false);
-            if (success) {
-                QMessageBox::information(this, tr("导出完成"), message);
-            } else {
-                QMessageBox::warning(this, tr("导出失败"), message);
-            }
-            exporter->deleteLater(); // Clean up exporter object
-        });
-        
+        connect(exporter, &LogExporter::progressChanged,
+                [this](int percentage) { progressBar->setValue(percentage); });
+
+        connect(exporter, &LogExporter::formatExported,
+                [this](const QString& format, const QString& filePath) {
+                    statusBar()->showMessage(
+                        tr("已导出 %1 格式到: %2").arg(format).arg(filePath),
+                        3000);
+                });
+
+        connect(exporter, &LogExporter::exportFinished,
+                [this, exporter](bool success, const QString& message) {
+                    progressBar->setVisible(false);
+                    if (success) {
+                        QMessageBox::information(this, tr("导出完成"), message);
+                    } else {
+                        QMessageBox::warning(this, tr("导出失败"), message);
+                    }
+                    exporter->deleteLater(); // Clean up exporter object
+                });
+
         // Show progress bar
         progressBar->setVisible(true);
         progressBar->setRange(0, 100);
         progressBar->setValue(0);
-        
+
         // Execute export
         if (config.formats.size() > 1) {
             exporter->exportMultipleFormats(filteredLogs, config);
@@ -886,30 +841,19 @@ void LogViewer::onExportFiltered()
 
 QList<LogEntry> LogViewer::getCurrentFilteredLogs() const
 {
-    if (!logModel) {
+    if (!proxyModel || !sourceModel) {
         return QList<LogEntry>();
     }
-    
+
     QList<LogEntry> filteredLogs;
-    
-    // Traverse model to get all displayed log entries
-    for (int i = 0; i < logModel->rowCount(); ++i) {
-        LogEntry entry;
-        QStandardItem* timestampItem = logModel->item(i, 1);
-        QStandardItem* levelItem = logModel->item(i, 2);
-        QStandardItem* moduleItem = logModel->item(i, 3);
-        QStandardItem* contentItem = logModel->item(i, 4);
-        
-        if (timestampItem && levelItem && moduleItem && contentItem) {
-            entry.timestamp = QDateTime::fromString(timestampItem->text(), "yyyy-MM-dd HH:mm:ss.zzz");
-            entry.level = levelItem->text();
-            entry.module = moduleItem->text();
-            entry.content = contentItem->text();
-            
-            filteredLogs.append(entry);
-        }
+
+    for (int i = 0; i < proxyModel->rowCount(); ++i) {
+        QModelIndex srcIndex = proxyModel->mapToSource(proxyModel->index(i, 0));
+        int srcRow = srcIndex.row();
+        if (srcRow >= 0 && srcRow < sourceModel->size())
+            filteredLogs.append(sourceModel->at(srcRow));
     }
-    
+
     return filteredLogs;
 }
 
@@ -918,8 +862,9 @@ void LogViewer::onLanguageChanged(int index)
     // Get selected language
     if (index >= 0 && index < languageComboBox->count()) {
         int languageValue = languageComboBox->itemData(index).toInt();
-        LanguageManager::Language language = static_cast<LanguageManager::Language>(languageValue);
-        
+        LanguageManager::Language language =
+            static_cast<LanguageManager::Language>(languageValue);
+
         // Instant language switch, no restart needed
         LanguageManager::instance().setLanguage(language);
     }
@@ -934,7 +879,7 @@ void LogViewer::onLanguageManagerChanged(LanguageManager::Language language)
         languageComboBox->setCurrentIndex(newIndex);
         languageComboBox->blockSignals(false);
     }
-    
+
     // Re-translate UI
     retranslateUI();
 }
@@ -942,84 +887,98 @@ void LogViewer::onLanguageManagerChanged(LanguageManager::Language language)
 void LogViewer::retranslateUI()
 {
     qDebug() << "=== Starting UI Retranslation ===";
-    
+
     // Test translation to work
     QString testTranslation = tr("日志查看器");
     qDebug() << "Test translation result:" << testTranslation;
-    
+
     // Re-set window title
     setWindowTitle(tr("日志查看器"));
     qDebug() << "Window title updated to:" << windowTitle();
-    
+
     // Re-set menu item text
     if (menuBar()) {
         QList<QMenu*> menus = menuBar()->findChildren<QMenu*>();
         for (QMenu* menu : menus) {
             QString oldTitle = menu->title();
             menu->setTitle(tr("文件"));
-            qDebug() << "Menu title changed from" << oldTitle << "to" << menu->title();
+            qDebug() << "Menu title changed from" << oldTitle << "to"
+                     << menu->title();
         }
     }
-    
+
     // Re-set action text
     if (openAction) {
         QString oldText = openAction->text();
         openAction->setText(tr("打开日志文件"));
-        qDebug() << "Open action text changed from" << oldText << "to" << openAction->text();
+        qDebug() << "Open action text changed from" << oldText << "to"
+                 << openAction->text();
     }
-    if (exportAction) exportAction->setText(tr("导出筛选结果"));
-    if (filterAction) filterAction->setText(tr("筛选"));
-    if (toggleFilterAction) toggleFilterAction->setText(tr("显示/隐藏筛选区域"));
-    
+    if (exportAction)
+        exportAction->setText(tr("导出筛选结果"));
+    if (filterAction)
+        filterAction->setText(tr("筛选"));
+    if (toggleFilterAction)
+        toggleFilterAction->setText(tr("显示/隐藏筛选区域"));
+
     // Re-set tool bar title
     QList<QToolBar*> toolBars = findChildren<QToolBar*>();
     for (QToolBar* toolBar : toolBars) {
         toolBar->setWindowTitle(tr("工具栏"));
     }
-    
+
     // Re-set group box title
     if (timeGroupBox) {
         QString oldTitle = timeGroupBox->title();
         timeGroupBox->setTitle(tr("时间范围"));
-        qDebug() << "Time group title changed from" << oldTitle << "to" << timeGroupBox->title();
+        qDebug() << "Time group title changed from" << oldTitle << "to"
+                 << timeGroupBox->title();
     }
     if (levelGroupBox) {
         QString oldTitle = levelGroupBox->title();
         levelGroupBox->setTitle(tr("日志等级"));
-        qDebug() << "Level group title changed from" << oldTitle << "to" << levelGroupBox->title();
+        qDebug() << "Level group title changed from" << oldTitle << "to"
+                 << levelGroupBox->title();
     }
     if (moduleGroupBox) {
         QString oldTitle = moduleGroupBox->title();
         moduleGroupBox->setTitle(tr("模块选择"));
-        qDebug() << "Module group title changed from" << oldTitle << "to" << moduleGroupBox->title();
+        qDebug() << "Module group title changed from" << oldTitle << "to"
+                 << moduleGroupBox->title();
     }
-    
+
     // Re-set button text
-    if (selectAllModulesButton) selectAllModulesButton->setText(tr("全选"));
-    if (deselectAllModulesButton) deselectAllModulesButton->setText(tr("全不选"));
-    if (searchPreviousButton) searchPreviousButton->setText(tr("上一条"));
-    if (searchNextButton) searchNextButton->setText(tr("下一条"));
-    
+    if (selectAllModulesButton)
+        selectAllModulesButton->setText(tr("全选"));
+    if (deselectAllModulesButton)
+        deselectAllModulesButton->setText(tr("全不选"));
+    if (searchPreviousButton)
+        searchPreviousButton->setText(tr("上一条"));
+    if (searchNextButton)
+        searchNextButton->setText(tr("下一条"));
+
     // Re-set search line edit placeholder text
-    if (searchLineEdit) searchLineEdit->setPlaceholderText(tr("搜索..."));
-    
+    if (searchLineEdit)
+        searchLineEdit->setPlaceholderText(tr("搜索..."));
+
     // Re-set language label text
     QList<QLabel*> allLabels = findChildren<QLabel*>();
     int labelsUpdated = 0;
     for (QLabel* label : allLabels) {
         QString oldText = label->text();
         QString newText = oldText;
-        
+
         if (oldText.contains("开始时间") || oldText.contains("Start")) {
             newText = tr("开始时间:");
         } else if (oldText.contains("结束时间") || oldText.contains("Finish")) {
             newText = tr("结束时间:");
-        } else if (oldText.contains("文件编码") || oldText.contains("encoding")) {
+        } else if (oldText.contains("文件编码") ||
+                   oldText.contains("encoding")) {
             newText = tr("文件编码:");
         } else if (oldText.contains("语言") || oldText.contains("Language")) {
             newText = tr("语言:");
         }
-        
+
         if (newText != oldText) {
             label->setText(newText);
             qDebug() << "Label updated from" << oldText << "to" << newText;
@@ -1027,36 +986,34 @@ void LogViewer::retranslateUI()
         }
     }
     qDebug() << "Total labels updated:" << labelsUpdated;
-    
-    // Re-set table headers
-    if (logModel) {
-        QStringList headers;
-        headers << tr("行号") << tr("时间") << tr("等级") << tr("模块") << tr("内容");
-        logModel->setHorizontalHeaderLabels(headers);
-        qDebug() << "Table headers updated to:" << headers;
+
+    // Re-set table headers (via view header, since we use custom model)
+    if (logTreeView && logTreeView->header()) {
+        // Nothing needed; model provides translated headers
+        qDebug() << "Table headers updated via model";
     }
-    
+
     // Re-set status bar information
     if (statusBar()) {
         statusBar()->showMessage(tr("就绪"));
     }
-    
+
     // Force UI update
     update();
     repaint(); // Force redraw
-    
+
     // Update GitHub link text and tooltip
     if (githubLinkLabel) {
         githubLinkLabel->setToolTip(tr("点击访问GitHub项目页面并给我们点赞"));
     }
-    
+
     qDebug() << "=== UI Retranslation Completed ===";
 }
 
-bool LogViewer::eventFilter(QObject *obj, QEvent *event)
+bool LogViewer::eventFilter(QObject* obj, QEvent* event)
 {
     if (obj == githubLinkLabel && event->type() == QEvent::MouseButtonPress) {
-        QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
+        QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
         if (mouseEvent->button() == Qt::LeftButton) {
             onGitHubLinkClicked();
             return true;

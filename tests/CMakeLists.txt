@@ -42,94 +42,139 @@ macro(add_logviewer_test testname)
     
     # 设置测试超时（30秒）
     set_tests_properties(${testname} PROPERTIES TIMEOUT 30)
+    
+    # 为覆盖率测试添加环境变量
+    if(ENABLE_COVERAGE)
+        set_tests_properties(${testname} PROPERTIES
+            ENVIRONMENT "GCOV_PREFIX=${CMAKE_BINARY_DIR}"
+        )
+    endif()
 endmacro()
 
-# 核心功能测试
-add_logviewer_test(test_logentry 
-    ${CMAKE_SOURCE_DIR}/src/core/logentry.h
-)
+# 核心功能测试（仅构建存在的测试文件）
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_logentry.cpp")
+    add_logviewer_test(test_logentry 
+        ${CMAKE_SOURCE_DIR}/src/core/logentry.h
+    )
+    set(TEST_TARGETS test_logentry)
+endif()
 
-add_logviewer_test(test_logexporter 
-    ${CMAKE_SOURCE_DIR}/src/core/logexporter.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/logexporter.h
-)
+# 以下测试文件暂未实现，注释掉避免CMake错误
+# if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_logexporter.cpp")
+#     add_logviewer_test(test_logexporter 
+#         ${CMAKE_SOURCE_DIR}/src/core/logexporter.cpp
+#         ${CMAKE_SOURCE_DIR}/src/core/logexporter.h
+#     )
+#     list(APPEND TEST_TARGETS test_logexporter)
+# endif()
 
-# 工具类测试
-add_logviewer_test(test_appsettings 
-    ${CMAKE_SOURCE_DIR}/src/utils/appsettings.cpp
-    ${CMAKE_SOURCE_DIR}/src/utils/appsettings.h
-)
+# if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_appsettings.cpp")
+#     add_logviewer_test(test_appsettings 
+#         ${CMAKE_SOURCE_DIR}/src/utils/appsettings.cpp
+#         ${CMAKE_SOURCE_DIR}/src/utils/appsettings.h
+#     )
+#     list(APPEND TEST_TARGETS test_appsettings)
+# endif()
 
-add_logviewer_test(test_languagemanager 
-    ${CMAKE_SOURCE_DIR}/src/utils/languagemanager.cpp
-    ${CMAKE_SOURCE_DIR}/src/utils/languagemanager.h
-)
+# if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_languagemanager.cpp")
+#     add_logviewer_test(test_languagemanager 
+#         ${CMAKE_SOURCE_DIR}/src/utils/languagemanager.cpp
+#         ${CMAKE_SOURCE_DIR}/src/utils/languagemanager.h
+#     )
+#     list(APPEND TEST_TARGETS test_languagemanager)
+# endif()
 
 # UI测试（可选，可能需要display）
 if(NOT $ENV{CI})  # 在CI环境中跳过UI测试
-    add_logviewer_test(test_logviewer 
-        ${CMAKE_SOURCE_DIR}/src/ui/logviewer.cpp
-        ${CMAKE_SOURCE_DIR}/src/ui/logviewer.h
-        ${CMAKE_SOURCE_DIR}/src/core/logentry.h
-        ${CMAKE_SOURCE_DIR}/src/core/logexporter.cpp
-        ${CMAKE_SOURCE_DIR}/src/core/logexporter.h
-        ${CMAKE_SOURCE_DIR}/src/utils/appsettings.cpp
-        ${CMAKE_SOURCE_DIR}/src/utils/appsettings.h
-        ${CMAKE_SOURCE_DIR}/src/utils/languagemanager.cpp
-        ${CMAKE_SOURCE_DIR}/src/utils/languagemanager.h
-    )
+    # if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_logviewer.cpp")
+    #     add_logviewer_test(test_logviewer 
+    #         ${CMAKE_SOURCE_DIR}/src/ui/logviewer.cpp
+    #         ${CMAKE_SOURCE_DIR}/src/ui/logviewer.h
+    #         ${CMAKE_SOURCE_DIR}/src/core/logentry.h
+    #         ${CMAKE_SOURCE_DIR}/src/core/logexporter.cpp
+    #         ${CMAKE_SOURCE_DIR}/src/core/logexporter.h
+    #         ${CMAKE_SOURCE_DIR}/src/utils/appsettings.cpp
+    #         ${CMAKE_SOURCE_DIR}/src/utils/appsettings.h
+    #         ${CMAKE_SOURCE_DIR}/src/utils/languagemanager.cpp
+    #         ${CMAKE_SOURCE_DIR}/src/utils/languagemanager.h
+    #     )
+    #     list(APPEND TEST_TARGETS test_logviewer)
+    # endif()
     
-    add_logviewer_test(test_exportdialog 
-        ${CMAKE_SOURCE_DIR}/src/ui/exportdialog.cpp
-        ${CMAKE_SOURCE_DIR}/src/ui/exportdialog.h
-        ${CMAKE_SOURCE_DIR}/src/core/logentry.h
-        ${CMAKE_SOURCE_DIR}/src/utils/appsettings.cpp
-        ${CMAKE_SOURCE_DIR}/src/utils/appsettings.h
+    # if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_exportdialog.cpp")
+    #     add_logviewer_test(test_exportdialog 
+    #         ${CMAKE_SOURCE_DIR}/src/ui/exportdialog.cpp
+    #         ${CMAKE_SOURCE_DIR}/src/ui/exportdialog.h
+    #         ${CMAKE_SOURCE_DIR}/src/core/logentry.h
+    #         ${CMAKE_SOURCE_DIR}/src/utils/appsettings.cpp
+    #         ${CMAKE_SOURCE_DIR}/src/utils/appsettings.h
+    #     )
+    #     list(APPEND TEST_TARGETS test_exportdialog)
+    # endif()
+endif()
+
+# 其他测试（暂未实现）
+# if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_integration.cpp")
+#     add_logviewer_test(test_integration)
+#     list(APPEND TEST_TARGETS test_integration)
+# endif()
+
+# if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_performance.cpp")
+#     add_logviewer_test(test_performance 
+#         ${CMAKE_SOURCE_DIR}/src/core/logexporter.cpp
+#         ${CMAKE_SOURCE_DIR}/src/core/logexporter.h
+#     )
+#     list(APPEND TEST_TARGETS test_performance)
+# endif()
+
+# 自定义测试目标（只依赖存在的测试）
+if(DEFINED TEST_TARGETS)
+    add_custom_target(run_tests
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose
+        DEPENDS ${TEST_TARGETS}
+        COMMENT "Running all LogReader tests"
+    )
+else()
+    # 如果没有测试文件，创建一个空的目标
+    add_custom_target(run_tests
+        COMMAND ${CMAKE_COMMAND} -E echo "No tests available to run"
+        COMMENT "No tests configured"
     )
 endif()
 
-# 集成测试
-add_logviewer_test(test_integration)
-
-# 性能测试
-add_logviewer_test(test_performance 
-    ${CMAKE_SOURCE_DIR}/src/core/logexporter.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/logexporter.h
-)
-
-# 自定义测试目标
-add_custom_target(run_tests
-    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose
-    DEPENDS 
-        test_logentry 
-        test_logexporter 
-        test_appsettings 
-        test_languagemanager 
-        test_integration 
-        test_performance
-    COMMENT "Running all LogReader tests"
-)
-
-# 测试覆盖率（如果启用）
+# 简化的Coverage目标
 if(ENABLE_COVERAGE)
-    include(CodeCoverage)
-    setup_target_for_coverage_gcovr_html(
-        NAME coverage
-        EXECUTABLE run_tests
-        DEPENDENCIES run_tests
-        BASE_DIRECTORY "${CMAKE_SOURCE_DIR}"
-        EXCLUDE "tests/*" "build/*" "/usr/*"
-    )
+    find_program(GCOVR_EXECUTABLE gcovr)
+    find_program(LCOV_EXECUTABLE lcov)
+    
+    if(LCOV_EXECUTABLE)
+        add_custom_target(coverage
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/coverage
+            COMMAND ${LCOV_EXECUTABLE} --capture --directory ${CMAKE_BINARY_DIR} --output-file ${CMAKE_BINARY_DIR}/coverage/coverage.info
+            COMMAND ${LCOV_EXECUTABLE} --remove ${CMAKE_BINARY_DIR}/coverage/coverage.info '/usr/*' '*/tests/*' '*/build/*' --output-file ${CMAKE_BINARY_DIR}/coverage/coverage_filtered.info
+            COMMAND ${LCOV_EXECUTABLE} --list ${CMAKE_BINARY_DIR}/coverage/coverage_filtered.info
+            DEPENDS run_tests
+            COMMENT "Generating coverage report"
+        )
+    elseif(GCOVR_EXECUTABLE)
+        add_custom_target(coverage
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/coverage
+            COMMAND ${GCOVR_EXECUTABLE} --root ${CMAKE_SOURCE_DIR} --html --html-details -o ${CMAKE_BINARY_DIR}/coverage/coverage.html ${CMAKE_BINARY_DIR}
+            DEPENDS run_tests
+            COMMENT "Generating coverage report with gcovr"
+        )
+    endif()
 endif()
 
 message(STATUS "LogReader test suite configured successfully")
 message(STATUS "Available test targets:")
-message(STATUS "  - test_logentry: Core data structure tests")
-message(STATUS "  - test_logexporter: Export functionality tests")
-message(STATUS "  - test_appsettings: Settings management tests")
-message(STATUS "  - test_languagemanager: Multi-language support tests")
-message(STATUS "  - test_integration: End-to-end integration tests")
-message(STATUS "  - test_performance: Performance and load tests")
+if(DEFINED TEST_TARGETS)
+    foreach(target ${TEST_TARGETS})
+        message(STATUS "  - ${target}")
+    endforeach()
+else()
+    message(STATUS "  - No test files found")
+endif()
 message(STATUS "  - run_tests: Run all tests")
 if(ENABLE_COVERAGE)
     message(STATUS "  - coverage: Generate code coverage report")

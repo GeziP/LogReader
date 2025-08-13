@@ -7,6 +7,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Qt](https://img.shields.io/badge/Qt-5.x%2B-green.svg)](https://www.qt.io/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-blue.svg)](#)
+[![Quality CI](https://github.com/yourusername/LogReader/actions/workflows/quality.yml/badge.svg)](https://github.com/yourusername/LogReader/actions/workflows/quality.yml)
+[![Codecov](https://codecov.io/gh/yourusername/LogReader/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/LogReader)
 [![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)](#)
 
 **🌍 语言版本：[中文](README.md) | [English](docs/README_EN.md)**

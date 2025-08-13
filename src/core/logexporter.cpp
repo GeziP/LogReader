@@ -2,8 +2,8 @@
  * @file logexporter.cpp
  * @brief Implementation of Log Export Functionality
  * @details Contains the complete implementation of LogExporter class providing
- *          multi-format log export capabilities with progress tracking and error
- *          handling. Supports TXT, CSV, and JSON export formats with proper
+ *          multi-format log export capabilities with progress tracking and
+ * error handling. Supports TXT, CSV, and JSON export formats with proper
  *          character encoding and data escaping.
  * @author GeziP
  * @date 2025-06-27
@@ -12,14 +12,15 @@
  */
 
 #include "logexporter.h"
-#include <QFile>
-#include <QTextStream>
-#include <QJsonDocument>
-#include <QJsonArray>
-#include <QJsonObject>
-#include <QDir>
+
 #include <QDebug>
+#include <QDir>
+#include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QTextStream>
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QTextCodec>
 #else
@@ -30,46 +31,45 @@
  * @brief Constructor for LogExporter
  * @param parent Parent QObject for memory management
  */
-LogExporter::LogExporter(QObject *parent) : QObject(parent)
-{
-}
+LogExporter::LogExporter(QObject* parent) : QObject(parent) {}
 
 /**
  * @brief Export logs to a single format (legacy compatibility method)
  * @param logs List of log entries to export
  * @param config Export configuration
  * @return True if export succeeded, false otherwise
- * @details This method provides backward compatibility for single-format exports.
- *          If multiple formats are configured, it delegates to exportMultipleFormats.
- *          Creates necessary directories and handles all error cases with appropriate
- *          signal emissions for UI feedback.
+ * @details This method provides backward compatibility for single-format
+ * exports. If multiple formats are configured, it delegates to
+ * exportMultipleFormats. Creates necessary directories and handles all error
+ * cases with appropriate signal emissions for UI feedback.
  */
-bool LogExporter::exportLogs(const QList<LogEntry>& logs, const ExportConfig& config)
+bool LogExporter::exportLogs(const QList<LogEntry>& logs,
+                             const ExportConfig& config)
 {
     if (logs.isEmpty()) {
         emit exportFinished(false, tr("没有日志数据可以导出"));
         return false;
     }
-    
+
     // If multiple formats configured, use multi-format export
     if (config.formats.size() > 1) {
         return exportMultipleFormats(logs, config);
     }
-    
+
     // Single format export (backward compatibility)
     if (config.formats.isEmpty()) {
         emit exportFinished(false, tr("未选择导出格式"));
         return false;
     }
-    
+
     ExportConfig::Format format = config.formats.first();
     QString filePath = config.getFilePathForFormat(format);
-    
+
     if (filePath.isEmpty()) {
         emit exportFinished(false, tr("导出文件路径不能为空"));
         return false;
     }
-    
+
     // Ensure directory exists
     QDir dir(QFileInfo(filePath).absolutePath());
     if (!dir.exists()) {
@@ -78,12 +78,12 @@ bool LogExporter::exportLogs(const QList<LogEntry>& logs, const ExportConfig& co
             return false;
         }
     }
-    
+
     // Create temporary configuration for single format export
     ExportConfig singleConfig = config;
     singleConfig.formats.clear();
     singleConfig.formats.append(format);
-    
+
     bool success = false;
     switch (format) {
     case ExportConfig::TXT:
@@ -96,11 +96,11 @@ bool LogExporter::exportLogs(const QList<LogEntry>& logs, const ExportConfig& co
         success = exportToJson(logs, singleConfig, filePath);
         break;
     }
-    
+
     if (success) {
         emit exportFinished(true, tr("导出成功！文件保存到: %1").arg(filePath));
     }
-    
+
     return success;
 }
 
@@ -114,23 +114,24 @@ bool LogExporter::exportLogs(const QList<LogEntry>& logs, const ExportConfig& co
  *          and handles errors gracefully. Emits formatExported signal for each
  *          completed format and exportFinished when all are complete.
  */
-bool LogExporter::exportMultipleFormats(const QList<LogEntry>& logs, const ExportConfig& config)
+bool LogExporter::exportMultipleFormats(const QList<LogEntry>& logs,
+                                        const ExportConfig& config)
 {
     if (logs.isEmpty()) {
         emit exportFinished(false, tr("没有日志数据可以导出"));
         return false;
     }
-    
+
     if (config.formats.isEmpty()) {
         emit exportFinished(false, tr("未选择导出格式"));
         return false;
     }
-    
+
     if (config.baseFileName.isEmpty() || config.exportDir.isEmpty()) {
         emit exportFinished(false, tr("导出路径配置不完整"));
         return false;
     }
-    
+
     // Ensure directory exists
     QDir dir(config.exportDir);
     if (!dir.exists()) {
@@ -139,15 +140,15 @@ bool LogExporter::exportMultipleFormats(const QList<LogEntry>& logs, const Expor
             return false;
         }
     }
-    
+
     QStringList exportedFiles;
     int totalFormats = config.formats.size();
     int currentFormat = 0;
-    
+
     // Export each format sequentially
     for (ExportConfig::Format format : config.formats) {
         QString filePath = config.getFilePathForFormat(format);
-        
+
         bool success = false;
         switch (format) {
         case ExportConfig::TXT:
@@ -160,27 +161,29 @@ bool LogExporter::exportMultipleFormats(const QList<LogEntry>& logs, const Expor
             success = exportToJson(logs, config, filePath);
             break;
         }
-        
+
         if (success) {
             exportedFiles.append(filePath);
             emit formatExported(ExportConfig::getFormatName(format), filePath);
         } else {
-            emit exportFinished(false, tr("导出 %1 格式失败").arg(ExportConfig::getFormatName(format)));
+            emit exportFinished(false,
+                                tr("导出 %1 格式失败")
+                                    .arg(ExportConfig::getFormatName(format)));
             return false;
         }
-        
+
         // Update overall progress across all formats
         currentFormat++;
         int overallProgress = (currentFormat * 100) / totalFormats;
         emit progressChanged(overallProgress);
     }
-    
+
     // Report successful completion of all formats
     QString message = tr("多格式导出成功！已导出 %1 个文件：\n%2")
-                     .arg(exportedFiles.size())
-                     .arg(exportedFiles.join("\n"));
+                          .arg(exportedFiles.size())
+                          .arg(exportedFiles.join("\n"));
     emit exportFinished(true, message);
-    
+
     return true;
 }
 
@@ -194,33 +197,35 @@ bool LogExporter::exportMultipleFormats(const QList<LogEntry>& logs, const Expor
  *          Uses UTF-8 encoding with BOM for Windows compatibility. Includes
  *          progress updates during the export process.
  */
-bool LogExporter::exportToTxt(const QList<LogEntry>& logs, const ExportConfig& config, const QString& filePath)
+bool LogExporter::exportToTxt(const QList<LogEntry>& logs,
+                              const ExportConfig& config,
+                              const QString& filePath)
 {
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         emit exportFinished(false, tr("无法创建文件: %1").arg(filePath));
         return false;
     }
-    
+
     // Write UTF-8 BOM to ensure Windows correctly recognizes encoding
     file.write("\xEF\xBB\xBF");
-    
+
     QTextStream out(&file);
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     out.setCodec("UTF-8");
 #else
     out.setEncoding(QStringConverter::Utf8);
 #endif
-    
+
     // Write each log entry as a formatted line
     for (int i = 0; i < logs.size(); ++i) {
         const LogEntry& entry = logs[i];
         QString line = formatLogEntry(entry, config, ExportConfig::TXT);
         out << line << "\n";
-        
+
         emitProgress(i + 1, logs.size());
     }
-    
+
     return true;
 }
 
@@ -234,42 +239,48 @@ bool LogExporter::exportToTxt(const QList<LogEntry>& logs, const ExportConfig& c
  *          Includes header row and uses UTF-8 encoding with BOM for Excel
  *          compatibility. Handles special characters and commas correctly.
  */
-bool LogExporter::exportToCsv(const QList<LogEntry>& logs, const ExportConfig& config, const QString& filePath)
+bool LogExporter::exportToCsv(const QList<LogEntry>& logs,
+                              const ExportConfig& config,
+                              const QString& filePath)
 {
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         emit exportFinished(false, tr("无法创建文件: %1").arg(filePath));
         return false;
     }
-    
+
     // Write UTF-8 BOM to ensure Windows correctly recognizes encoding
     file.write("\xEF\xBB\xBF");
-    
+
     QTextStream out(&file);
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     out.setCodec("UTF-8");
 #else
     out.setEncoding(QStringConverter::Utf8);
 #endif
-    
+
     // Write CSV header row based on included fields
     QStringList headers;
-    if (config.includeTimestamp) headers << "时间戳";
-    if (config.includeLevel) headers << "日志等级";
-    if (config.includeModule) headers << "模块";
-    if (config.includeContent) headers << "内容";
-    
+    if (config.includeTimestamp)
+        headers << "时间戳";
+    if (config.includeLevel)
+        headers << "日志等级";
+    if (config.includeModule)
+        headers << "模块";
+    if (config.includeContent)
+        headers << "内容";
+
     out << headers.join(",") << "\n";
-    
+
     // Write each log entry as a CSV row
     for (int i = 0; i < logs.size(); ++i) {
         const LogEntry& entry = logs[i];
         QString line = formatLogEntry(entry, config, ExportConfig::CSV);
         out << line << "\n";
-        
+
         emitProgress(i + 1, logs.size());
     }
-    
+
     return true;
 }
 
@@ -283,18 +294,21 @@ bool LogExporter::exportToCsv(const QList<LogEntry>& logs, const ExportConfig& c
  *          Uses UTF-8 encoding and creates an array of log entry objects.
  *          Suitable for programmatic processing and data exchange.
  */
-bool LogExporter::exportToJson(const QList<LogEntry>& logs, const ExportConfig& config, const QString& filePath)
+bool LogExporter::exportToJson(const QList<LogEntry>& logs,
+                               const ExportConfig& config,
+                               const QString& filePath)
 {
     QJsonArray logArray;
-    
+
     // Convert each log entry to JSON object
     for (int i = 0; i < logs.size(); ++i) {
         const LogEntry& entry = logs[i];
         QJsonObject logObject;
-        
+
         // Add fields based on configuration
         if (config.includeTimestamp) {
-            logObject["timestamp"] = entry.timestamp.toString("yyyy-MM-dd HH:mm:ss.zzz");
+            logObject["timestamp"] =
+                entry.timestamp.toString("yyyy-MM-dd HH:mm:ss.zzz");
         }
         if (config.includeLevel) {
             logObject["level"] = entry.level;
@@ -303,26 +317,26 @@ bool LogExporter::exportToJson(const QList<LogEntry>& logs, const ExportConfig& 
             logObject["module"] = entry.module;
         }
         if (config.includeContent) {
-            logObject["content"] = entry.content;
+            logObject["content"] = entry.message;
         }
-        
+
         logArray.append(logObject);
         emitProgress(i + 1, logs.size());
     }
-    
+
     // Write JSON document to file
     QJsonDocument doc(logArray);
-    
+
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         emit exportFinished(false, tr("无法创建文件: %1").arg(filePath));
         return false;
     }
-    
+
     // Write UTF-8 BOM for consistency
     file.write("\xEF\xBB\xBF");
     file.write(doc.toJson(QJsonDocument::Indented));
-    
+
     return true;
 }
 
@@ -336,10 +350,12 @@ bool LogExporter::exportToJson(const QList<LogEntry>& logs, const ExportConfig& 
  *          the specified format, respecting field inclusion settings and
  *          applying proper escaping for CSV format.
  */
-QString LogExporter::formatLogEntry(const LogEntry& entry, const ExportConfig& config, ExportConfig::Format format)
+QString LogExporter::formatLogEntry(const LogEntry& entry,
+                                    const ExportConfig& config,
+                                    ExportConfig::Format format)
 {
     QStringList fields;
-    
+
     if (config.includeTimestamp) {
         QString timestamp = entry.timestamp.toString("yyyy-MM-dd HH:mm:ss.zzz");
         if (format == ExportConfig::CSV) {
@@ -347,7 +363,7 @@ QString LogExporter::formatLogEntry(const LogEntry& entry, const ExportConfig& c
         }
         fields << timestamp;
     }
-    
+
     if (config.includeLevel) {
         QString level = entry.level;
         if (format == ExportConfig::CSV) {
@@ -355,7 +371,7 @@ QString LogExporter::formatLogEntry(const LogEntry& entry, const ExportConfig& c
         }
         fields << level;
     }
-    
+
     if (config.includeModule) {
         QString module = entry.module;
         if (format == ExportConfig::CSV) {
@@ -363,15 +379,15 @@ QString LogExporter::formatLogEntry(const LogEntry& entry, const ExportConfig& c
         }
         fields << module;
     }
-    
+
     if (config.includeContent) {
-        QString content = entry.content;
+        QString content = entry.message;
         if (format == ExportConfig::CSV) {
             content = escapeForCsv(content);
         }
         fields << content;
     }
-    
+
     // Join fields with appropriate separator
     if (format == ExportConfig::CSV) {
         return fields.join(",");
@@ -391,15 +407,16 @@ QString LogExporter::formatLogEntry(const LogEntry& entry, const ExportConfig& c
 QString LogExporter::escapeForCsv(const QString& field)
 {
     QString escaped = field;
-    
+
     // If field contains comma, quote, or newline, wrap in quotes
-    if (escaped.contains(',') || escaped.contains('"') || escaped.contains('\n') || escaped.contains('\r')) {
+    if (escaped.contains(',') || escaped.contains('"') ||
+        escaped.contains('\n') || escaped.contains('\r')) {
         // Escape internal quotes by doubling them
         escaped.replace('"', "\"\"");
         // Wrap entire field in quotes
         escaped = "\"" + escaped + "\"";
     }
-    
+
     return escaped;
 }
 
@@ -458,10 +475,14 @@ QString ExportConfig::getFilePathForFormat(Format format) const
 QString ExportConfig::getFormatExtension(Format format)
 {
     switch (format) {
-    case TXT: return ".txt";
-    case CSV: return ".csv";
-    case JSON: return ".json";
-    default: return ".txt";
+    case TXT:
+        return ".txt";
+    case CSV:
+        return ".csv";
+    case JSON:
+        return ".json";
+    default:
+        return ".txt";
     }
 }
 
@@ -475,9 +496,13 @@ QString ExportConfig::getFormatExtension(Format format)
 QString ExportConfig::getFormatName(Format format)
 {
     switch (format) {
-    case TXT: return QObject::tr("文本格式");
-    case CSV: return QObject::tr("CSV格式");
-    case JSON: return QObject::tr("JSON格式");
-    default: return QObject::tr("未知格式");
+    case TXT:
+        return QObject::tr("文本格式");
+    case CSV:
+        return QObject::tr("CSV格式");
+    case JSON:
+        return QObject::tr("JSON格式");
+    default:
+        return QObject::tr("未知格式");
     }
-} 
+}

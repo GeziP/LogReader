@@ -75,10 +75,12 @@ graph TD
 ```
 .github/workflows/
 └── release.yml         # 自动发布流程 - 多平台构建和发布
+├── quality.yml         # 质量工作流 - 静态分析 / Sanitizers / 覆盖率
 ```
 
 **当前已实现的工作流：**
 - ✅ **release.yml** - 完整的多平台自动发布流程
+- ✅ **quality.yml** - 代码质量检查、Sanitizers、覆盖率
 - 🔄 **ci.yml** - 日常CI流程 (规划中)
 - 🔄 **code-quality.yml** - 代码质量检查 (规划中)
 
@@ -260,6 +262,50 @@ pip install lizard
 lizard src/ -l cpp
 ```
 
++### 🛠️ 自动化开发环境设置
+
++为方便快速搭建开发环境，本项目提供了自动化脚本：
+
++#### Windows环境
++```powershell
++# 以管理员权限运行PowerShell
++.\scripts\setup_dev_env.ps1
++```
+
++#### Linux/macOS环境
++```bash
++# 添加执行权限
++chmod +x scripts/setup_dev_env.sh
++# 运行安装脚本
++./scripts/setup_dev_env.sh
++```
+
++这些脚本会自动安装：
++- LLVM工具链（clang, clang-tidy, clang-format）
++- cppcheck静态分析工具
++- lcov代码覆盖率工具（Linux/macOS）
++- Python和pre-commit
++- Microsoft GSL库
++- 设置预提交钩子
++- 创建初始构建目录
+
++安装完成后，您可以立即使用以下功能：
++1. 自动代码格式化（提交前）
++2. 静态代码分析
++3. 动态分析（Sanitizers）
++4. 代码覆盖率生成
++5. GSL库开发
+
++#### 使用pre-commit钩子
++安装后，每次`git commit`前会自动运行以下检查：
++- 代码格式检查（clang-format）
++- 静态分析（cppcheck）
++- CMake文件格式检查
++- 文件末尾空行检查
++- 空白字符检查
+
++如果检查失败，提交会被阻止，您需要修复问题后重新提交。
+
 ## 🔧 配置文件说明
 
 ### .clang-format
@@ -393,6 +439,57 @@ file build/LogReader  # Linux/macOS
 - 🔧 [Qt CI/CD最佳实践](https://doc.qt.io/qt-6/cmake-manual.html)
 - 🛡️ [C++安全编码指南](https://isocpp.github.io/CppCoreGuidelines/)
 - 📋 [Doxygen文档生成](https://www.doxygen.nl/manual/)
+
+## 本地一键CI检查脚本
+
+项目提供`scripts/auto_format_and_check.bat`，一键完成本地代码格式化、静态分析、翻译文件检查、结构检查和CMake构建测试，确保本地与CI一致。
+
+### 用法
+```bat
+cd scripts
+./auto_format_and_check.bat
+```
+或在项目根目录下：
+```bat
+scripts\auto_format_and_check.bat
+```
+
+### 环境变量与依赖
+- 自动设置QT_ROOT、Qt5_DIR、CMAKE_PREFIX_PATH、MinGW路径
+- 需本地已安装：Qt（MinGW版）、MinGW、CMake、clang-format、cppcheck、lrelease
+
+### 常见问题
+- **CMake找不到Qt/MinGW**：脚本已自动设置环境变量，仍报错请检查实际安装路径。
+- **g++未检测到**：请确认MinGW已安装并路径正确。
+- **格式化/静态分析/翻译检查失败**：请根据脚本输出修复源代码。
+- **构建失败**：请先用Qt Creator确认能正常编译，再用脚本验证。
+
+### 推荐流程
+1. 先用Qt Creator开发、调试。
+2. 提交前运行auto_format_and_check.bat，确保所有检查通过。
+3. 通过后再push/PR，CI必过。
+
+## 本地与CI格式化工具链一致性
+
+- 项目根目录有唯一`.clang-format`配置文件，CI与本地均强制使用该文件。
+- CI指定clang-format版本（如14/15/16），建议本地用包管理器安装同版本。
+- Windows推荐choco，Linux推荐apt，macOS推荐brew。
+- 格式化不通过时，先本地运行`clang-format -i <file>`修正。
+
+## CI Qt架构自动适配说明
+
+- CI脚本已根据runner平台自动指定Qt架构：
+  - Windows: `arch: windows_x64`
+  - Linux: `arch: linux_x64`
+  - macOS: `arch: clang_64`
+- 如需支持新架构，扩展`arch`参数即可。
+- 若遇"架构不匹配"链接错误，优先检查CI日志Qt安装步骤与runner架构是否一致。
+
+## 常见CI架构适配问题排查
+
+- 链接报`undefined symbols for architecture ...`，多为Qt库与runner架构不符。
+- 检查`Install Qt`步骤arch参数，确保与runner平台一致。
+- 如需强制指定平台，可在workflow中调整`runs-on`参数。
 
 ---
 
