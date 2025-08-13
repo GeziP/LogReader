@@ -6,7 +6,7 @@
 ## 问题分析
 1. **Qt版本不一致**：环境变量设置为5.15.2，但部分job使用6.5.3
 2. **aqtinstall兼容性**：Qt 5.15.2的qtbase模块在当前镜像中不可用
-3. **架构配置混乱**：Windows平台同时使用win64_mingw和win64_mingw81
+3. **架构配置混乱**：Windows平台同时使用win64_mingw和win64_mingw81（应统一为win64_mingw；Linux统一为gcc_64）
 
 ## 解决方案
 采用统一升级到Qt 6.5.3的方案，确保aqtinstall兼容性。
@@ -19,7 +19,7 @@
    - 确保所有jobs使用相同版本
 
 2. **修复架构配置不一致**
-   - 统一Windows使用win64_mingw
+   - 统一Windows使用win64_mingw，Linux使用gcc_64
    - 统一Linux使用gcc_64
 
 3. **移除多余步骤**

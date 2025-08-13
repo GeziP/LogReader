@@ -479,8 +479,8 @@ scripts\auto_format_and_check.bat
 ## CI Qt架构自动适配说明
 
 - CI脚本已根据runner平台自动指定Qt架构：
-  - Windows: `arch: windows_x64`
-  - Linux: `arch: linux_x64`
+  - Windows: `arch: win64_mingw`
+  - Linux: `arch: gcc_64`
   - macOS: `arch: clang_64`
 - 如需支持新架构，扩展`arch`参数即可。
 - 若遇"架构不匹配"链接错误，优先检查CI日志Qt安装步骤与runner架构是否一致。

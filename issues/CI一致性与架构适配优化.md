@@ -7,8 +7,8 @@
 ## 主要操作
 1. 检查并确认项目根目录唯一`.clang-format`，CI与本地强制统一风格。
 2. CI脚本（quality.yml/release.yml）全部Qt安装步骤补充`arch`参数：
-   - Windows: `arch: windows_x64`
-   - Linux: `arch: linux_x64`
+   - Windows: `arch: win64_mingw`
+   - Linux: `arch: gcc_64`
    - macOS: `arch: clang_64`
 3. 文档（中英文CI/CD指南）补充格式化工具链、Qt架构适配说明及常见问题排查建议。
 
