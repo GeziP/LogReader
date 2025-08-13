@@ -28,7 +28,6 @@ jobs:
         uses: jurplel/install-qt-action@v3
         with:
           version: ${{ env.QT_VERSION }}
-          arch: ${{ matrix.os == 'windows-latest' && 'win64_msvc2022_64' || 'gcc_64' }}
 
       # Windows 不再使用 MinGW 路线，移除此步骤
       # Windows/Linux依赖安装
@@ -140,7 +139,6 @@ jobs:
         uses: jurplel/install-qt-action@v3
         with:
           version: ${{ env.QT_VERSION }}
-          arch: ${{ matrix.os == 'windows-latest' && 'win64_mingw' || 'gcc_64' }}
           
       - name: Install dependencies (Windows)
         if: matrix.os == 'windows-latest'

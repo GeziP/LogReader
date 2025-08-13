@@ -28,7 +28,7 @@ jobs:
       uses: jurplel/install-qt-action@v3
       with:
         version: ${{ env.QT_VERSION }}
-        arch: win64_msvc2022_64
+        
 
         
     - name: Compile translations
@@ -107,7 +107,7 @@ jobs:
       uses: jurplel/install-qt-action@v3
       with:
         version: ${{ env.QT_VERSION }}
-        arch: gcc_64
+        
         
     - name: Compile translations
       run: |
@@ -169,7 +169,7 @@ jobs:
       uses: jurplel/install-qt-action@v3
       with:
         version: ${{ env.QT_VERSION }}
-        arch: clang_64
+        
         
     - name: Compile translations
       run: |
