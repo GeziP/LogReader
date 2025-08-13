@@ -28,37 +28,8 @@ jobs:
       uses: jurplel/install-qt-action@v3
       with:
         version: ${{ env.QT_VERSION }}
-        arch: win64_mingw
-        tools: tools_mingw
+        arch: win64_msvc2022_64
 
-    - name: Ensure MinGW toolchain in PATH
-      run: |
-        # Prefer Qt Tools MinGW; fallback to Chocolatey MinGW
-        $added = $false
-        if ($env:Qt6_DIR) {
-          $qtBase = Split-Path -Parent (Split-Path -Parent $env:Qt6_DIR)
-          $toolsDir = Join-Path $qtBase 'Tools'
-          if (Test-Path $toolsDir) {
-            $mingwDir = Get-ChildItem -Path $toolsDir -Filter 'mingw*64' -Directory | Sort-Object Name -Descending | Select-Object -First 1
-            if ($mingwDir) {
-              $mingwBin = Join-Path $mingwDir.FullName 'bin'
-              "$mingwBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-              Write-Host "Added MinGW to PATH: $mingwBin"
-              $added = $true
-            }
-          }
-        }
-        if (-not $added) {
-          Write-Host 'Qt Tools MinGW not found; installing Chocolatey MinGW...'
-          choco install -y mingw --no-progress --timeout=600 --execution-timeout=600
-          $mingwChoco = 'C:\\tools\\mingw64\\bin'
-          if (Test-Path $mingwChoco) {
-            $mingwChoco | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-            Write-Host "Added Chocolatey MinGW to PATH: $mingwChoco"
-          } else {
-            throw 'MinGW toolchain not found via Qt Tools or Chocolatey.'
-          }
-        }
         
     - name: Compile translations
       run: |
@@ -71,20 +42,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        # Resolve MinGW bin (Qt Tools or Chocolatey fallback from PATH step)
-        $mingwBin = $null
-        if ($env:Qt6_DIR) {
-          $qtBase = Split-Path -Parent (Split-Path -Parent $env:Qt6_DIR)
-          $mingwCandidate = (Get-ChildItem -Path (Join-Path $qtBase 'Tools') -Filter 'mingw*64' -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1 | ForEach-Object { Join-Path $_.FullName 'bin' })
-          if ($mingwCandidate) { $mingwBin = $mingwCandidate }
-        }
-        if (-not $mingwBin) { $mingwBin = 'C:\\tools\\mingw64\\bin' }
-        if (-not (Test-Path $mingwBin)) { throw "MinGW bin not found: $mingwBin" }
-        $env:PATH = "$mingwBin;$env:PATH"
-        $gcc = Join-Path $mingwBin 'gcc.exe'
-        $gxx = Join-Path $mingwBin 'g++.exe'
-        $make = Join-Path $mingwBin 'mingw32-make.exe'
-        cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER="$gcc" -DCMAKE_CXX_COMPILER="$gxx" -DCMAKE_MAKE_PROGRAM="$make"
+        cmake .. -A x64 -DCMAKE_BUILD_TYPE=Release
         cmake --build . --config Release
         
     - name: Deploy Qt
