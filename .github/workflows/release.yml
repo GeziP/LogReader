@@ -29,7 +29,6 @@ jobs:
       with:
         version: ${{ env.QT_VERSION }}
         arch: win64_mingw
-        tools: tools_mingw,qt.tools.win64_mingw1120
 
     - name: Add MinGW to PATH (Qt Tools)
       run: |
@@ -68,7 +67,15 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+        # Prefer the MinGW that ships with Qt Tools
+        $qtBase = Split-Path -Parent (Split-Path -Parent $env:Qt6_DIR)
+        $mingwBin = (Get-ChildItem -Path (Join-Path $qtBase 'Tools') -Filter 'mingw*64' -Directory | Sort-Object Name -Descending | Select-Object -First 1 | ForEach-Object { Join-Path $_.FullName 'bin' })
+        if (-not $mingwBin) { throw 'MinGW bin not found under Qt Tools' }
+        $env:PATH = "$mingwBin;$env:PATH"
+        $gcc = Join-Path $mingwBin 'gcc.exe'
+        $gxx = Join-Path $mingwBin 'g++.exe'
+        $make = Join-Path $mingwBin 'mingw32-make.exe'
+        cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER="$gcc" -DCMAKE_CXX_COMPILER="$gxx" -DCMAKE_MAKE_PROGRAM="$make"
         cmake --build . --config Release
         
     - name: Deploy Qt

@@ -29,7 +29,7 @@ jobs:
         with:
           version: ${{ env.QT_VERSION }}
           arch: ${{ matrix.os == 'windows-latest' && 'win64_mingw' || 'gcc_64' }}
-          tools: ${{ matrix.os == 'windows-latest' && 'tools_mingw,qt.tools.win64_mingw1120' || '' }}
+          # 不再显式 pin MinGW 变种，使用 Qt 6.5.3 配套默认工具
 
       - name: Add MinGW to PATH (Qt Tools)
         if: matrix.os == 'windows-latest'
@@ -38,15 +38,7 @@ jobs:
           if ($env:Qt6_DIR) {
             $qtBase = Split-Path -Parent (Split-Path -Parent $env:Qt6_DIR)
             $toolsDir = Join-Path $qtBase 'Tools'
-            $preferredNames = @('mingw1120_64','mingw1220_64')
-            $mingwDir = $null
-            foreach ($name in $preferredNames) {
-              $candidate = Join-Path $toolsDir $name
-              if (Test-Path $candidate) { $mingwDir = Get-Item $candidate; break }
-            }
-            if (-not $mingwDir) {
-              $mingwDir = Get-ChildItem -Path $toolsDir -Filter 'mingw*64' -Directory | Sort-Object Name -Descending | Select-Object -First 1
-            }
+            $mingwDir = Get-ChildItem -Path $toolsDir -Filter 'mingw*64' -Directory | Sort-Object Name -Descending | Select-Object -First 1
             if ($mingwDir) {
               $mingwBin = Join-Path $mingwDir.FullName 'bin'
               "$mingwBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
@@ -81,7 +73,14 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          $qtBase = Split-Path -Parent (Split-Path -Parent $env:Qt6_DIR)
+          $mingwBin = (Get-ChildItem -Path (Join-Path $qtBase 'Tools') -Filter 'mingw*64' -Directory | Sort-Object Name -Descending | Select-Object -First 1 | ForEach-Object { Join-Path $_.FullName 'bin' })
+          if (-not $mingwBin) { throw 'MinGW bin not found under Qt Tools' }
+          $env:PATH = "$mingwBin;$env:PATH"
+          $gcc = Join-Path $mingwBin 'gcc.exe'
+          $gxx = Join-Path $mingwBin 'g++.exe'
+          $make = Join-Path $mingwBin 'mingw32-make.exe'
+          cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_C_COMPILER="$gcc" -DCMAKE_CXX_COMPILER="$gxx" -DCMAKE_MAKE_PROGRAM="$make"
           cmake --build . -- -j2
       - name: Configure & Build (Linux)
         if: matrix.os == 'ubuntu-latest'
