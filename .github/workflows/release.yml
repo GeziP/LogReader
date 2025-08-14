@@ -28,6 +28,7 @@ jobs:
       uses: jurplel/install-qt-action@v3
       with:
         version: ${{ env.QT_VERSION }}
+        arch: win64_msvc2019_64
         
 
         
@@ -42,18 +43,18 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake .. -A x64 -DCMAKE_BUILD_TYPE=Release
-        cmake --build . --config Release
+        cmake .. -A x64 -T v142 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DCMAKE_CXX_FLAGS_RELEASE="/O2 /GL /Gw /Gy /Oi /Ot /Ob3 /fp:fast" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/LTCG /INCREMENTAL:NO /OPT:REF /OPT:ICF"
+        cmake --build . --config Release -- /m
         
     - name: Deploy Qt
       run: |
         cd build
         if (Test-Path "Release\LogReader.exe") {
           cd Release
-          windeployqt --release LogReader.exe
+          windeployqt --release --compiler-runtime LogReader.exe
           Copy-Item "..\..\translations\*.qm" . -ErrorAction SilentlyContinue
         } else {
-          windeployqt --release LogReader.exe  
+          windeployqt --release --compiler-runtime LogReader.exe  
           Copy-Item "..\translations\*.qm" . -ErrorAction SilentlyContinue
         }
         

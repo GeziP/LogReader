@@ -54,6 +54,7 @@
 #include <QEvent>
 #include <QFont>
 #include <QFontMetrics>
+#include <QSysInfo>
 #include <QLineEdit>
 #include <QModelIndex>
 #include <QMouseEvent>
@@ -414,7 +415,18 @@ void LogViewer::setupUI()
     githubLinkLabel->installEventFilter(this);
     statusBar()->addPermanentWidget(githubLinkLabel);
 
-    statusBar()->showMessage(tr("就绪"));
+    // 显示运行时Qt版本与构建信息，便于排查发布差异
+    QString buildInfo = QString("Qt %1 | %2 | %3")
+                            .arg(QString::fromLatin1(qVersion()))
+                            .arg(QString::fromLatin1(QT_VERSION_STR))
+                            .arg(QString::fromLatin1(
+#ifdef NDEBUG
+                                 "Release"
+#else
+                                 "Debug"
+#endif
+                                 ));
+    statusBar()->showMessage(tr("就绪 · %1").arg(buildInfo));
 
     // Initialize models
     sourceModel = new LogTableModel(this);
@@ -468,9 +480,11 @@ void LogViewer::loadLogFile(const QString& filePath)
     connect(loader, &LogLoader::error, this, [this](const QString& msg) {
         QMessageBox::warning(this, tr("错误"), msg);
     });
-    // 暂停视图更新以避免频繁重绘
-    //logTreeView->setUpdatesEnabled(false);
-    //logTreeView->viewport()->setUpdatesEnabled(false);
+    // 发布构建下，加载期间冻结视图更新以减少重绘
+#ifdef NDEBUG
+    logTreeView->setUpdatesEnabled(false);
+    logTreeView->viewport()->setUpdatesEnabled(false);
+#endif
 
     connect(loader, &LogLoader::chunkReady, this, [this](QVector<LogEntry> chunk) {
         // Append to in-memory cache and model
@@ -501,10 +515,12 @@ void LogViewer::loadLogFile(const QString& filePath)
         for (QCheckBox* checkBox : moduleCheckBoxes) checkBox->setChecked(true);
     });
     connect(loader, &LogLoader::finished, this, [this, loader, thread, filePath]() {
-        // 恢复视图更新并进行一次性刷新
+        // 发布构建下，加载结束后恢复视图更新并进行一次性刷新
+#ifdef NDEBUG
         logTreeView->setUpdatesEnabled(true);
         logTreeView->viewport()->setUpdatesEnabled(true);
         logTreeView->viewport()->update();
+#endif
 
         progressBar->setVisible(false);
         exportAction->setEnabled(true);
