@@ -34,11 +34,18 @@ void LogLoader::process()
     }
     in.setCodec(codec);
 #else
-    in.setEncoding(QStringConverter::Utf8);
+    auto enc = QStringConverter::encodingForName(m_encoding.toUtf8());
+    if (enc.has_value()) {
+        in.setEncoding(*enc);
+    } else {
+        emit error(QObject::tr("不支持的编码格式：%1，已回退为UTF-8").arg(m_encoding));
+        in.setEncoding(QStringConverter::Utf8);
+    }
 #endif
 
     // More tolerant spacing: allow variable spaces around tokens and colon
     QRegularExpression regex(R"((?:\[\s*(.*?)\s*\])\s*(?:\[\s*(.*?)\s*\])\s*(?:\[\s*(.*?)\s*\])\s*:\s*(.*)$)");
+    regex.setPatternOptions(QRegularExpression::OptimizeOnFirstUsageOption);
     QVector<LogEntry> buffer;
     buffer.reserve(m_chunkSize);
 
@@ -53,7 +60,7 @@ void LogLoader::process()
 
     while (!in.atEnd()) {
         QString line = in.readLine();
-        processedBytes += line.size();
+        processedBytes = file.pos();
         QRegularExpressionMatch match = regex.match(line);
         if (match.hasMatch()) {
             LogEntry entry;

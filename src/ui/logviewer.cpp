@@ -455,7 +455,7 @@ void LogViewer::loadLogFile(const QString& filePath)
 
     // Background loader
     QThread* thread = new QThread(this);
-    LogLoader* loader = new LogLoader(filePath, encoding, 5000);
+    LogLoader* loader = new LogLoader(filePath, encoding, 20000);
     qRegisterMetaType<LogEntry>("LogEntry");
     qRegisterMetaType<QVector<LogEntry>>("QVector<LogEntry>");
     loader->moveToThread(thread);
@@ -466,6 +466,10 @@ void LogViewer::loadLogFile(const QString& filePath)
     connect(loader, &LogLoader::error, this, [this](const QString& msg) {
         QMessageBox::warning(this, tr("错误"), msg);
     });
+    // 暂停视图更新以避免频繁重绘
+    //logTreeView->setUpdatesEnabled(false);
+    //logTreeView->viewport()->setUpdatesEnabled(false);
+
     connect(loader, &LogLoader::chunkReady, this, [this](QVector<LogEntry> chunk) {
         // Append to in-memory cache and model
         for (const auto& e : chunk) allLogs.append(e);
@@ -495,6 +499,11 @@ void LogViewer::loadLogFile(const QString& filePath)
         for (QCheckBox* checkBox : moduleCheckBoxes) checkBox->setChecked(true);
     });
     connect(loader, &LogLoader::finished, this, [this, loader, thread, filePath]() {
+        // 恢复视图更新并进行一次性刷新
+        logTreeView->setUpdatesEnabled(true);
+        logTreeView->viewport()->setUpdatesEnabled(true);
+        logTreeView->viewport()->update();
+
         progressBar->setVisible(false);
         exportAction->setEnabled(true);
         statusBar()->showMessage(tr("已加载文件：%1，日志条目数：%2").arg(filePath).arg(allLogs.size()));
