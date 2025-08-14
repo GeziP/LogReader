@@ -45,7 +45,7 @@ void LogLoader::process()
 
     // More tolerant spacing: allow variable spaces around tokens and colon
     QRegularExpression regex(R"((?:\[\s*(.*?)\s*\])\s*(?:\[\s*(.*?)\s*\])\s*(?:\[\s*(.*?)\s*\])\s*:\s*(.*)$)");
-    regex.setPatternOptions(QRegularExpression::OptimizeOnFirstUsageOption);
+    regex.optimize();
     QVector<LogEntry> buffer;
     buffer.reserve(m_chunkSize);
 

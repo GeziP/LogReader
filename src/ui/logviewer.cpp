@@ -45,6 +45,8 @@
 #include <QMetaType>
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QTextCodec>
+#else
+#include <QStringConverter>
 #endif
 #include <QBrush>
 #include <QDebug>
@@ -527,7 +529,7 @@ QList<LogEntry> LogViewer::parseLogFile(const QString& filePath,
     }
 
     QTextStream in(&file);
-    // Process Chinese encoding
+    // 统一处理编码（Qt5/Qt6）
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     QTextCodec* codec = QTextCodec::codecForName(encoding.toUtf8());
     if (!codec) {
@@ -537,11 +539,19 @@ QList<LogEntry> LogViewer::parseLogFile(const QString& filePath,
     }
     in.setCodec(codec);
 #else
-    in.setEncoding(QStringConverter::Utf8);
+    auto enc = QStringConverter::encodingForName(encoding.toUtf8());
+    if (enc.has_value()) {
+        in.setEncoding(*enc);
+    } else {
+        QMessageBox::warning(this, tr("错误"),
+                             tr("不支持的编码格式：%1，已回退为UTF-8").arg(encoding));
+        in.setEncoding(QStringConverter::Utf8);
+    }
 #endif
 
     // More tolerant spacing: allow variable spaces around tokens and colon
     QRegularExpression regex(R"((?:\[\s*(.*?)\s*\])\s*(?:\[\s*(.*?)\s*\])\s*(?:\[\s*(.*?)\s*\])\s*:\s*(.*)$)");
+    regex.optimize();
     while (!in.atEnd()) {
         QString line = in.readLine();
         QRegularExpressionMatch match = regex.match(line);
