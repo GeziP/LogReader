@@ -52,7 +52,7 @@ jobs:
     - name: Deploy Qt
       run: |
         cd build
-        windeployqt --release --compiler-runtime LogReader.exe  
+        windeployqt --release --compiler-runtime --no-translations LogReader.exe  
         Copy-Item "..\translations\*.qm" . -ErrorAction SilentlyContinue
         
     - name: Package Windows
