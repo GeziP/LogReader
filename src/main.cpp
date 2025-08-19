@@ -28,7 +28,9 @@
  */
 void myTerminateHandler()
 {
+#ifdef LOG_DEBUG_ENABLED
     qDebug() << "Unhandled exception caught!";
+#endif
     QMessageBox::critical(nullptr, "错误", "程序遇到未处理的异常，即将退出。");
     std::abort();
 }
@@ -56,12 +58,14 @@ int main(int argc, char* argv[])
     a.setOrganizationName("LogViewer");
     a.setOrganizationDomain("logviewer.org");
 
-    // Debug output for troubleshooting
+    // Debug output for troubleshooting (only in debug builds)
+#ifdef LOG_DEBUG_ENABLED
     qDebug() << "Application starting...";
     qDebug() << "Application directory:" << QApplication::applicationDirPath();
+    qDebug() << "Initializing language manager...";
+#endif
 
     // Initialize language management system
-    qDebug() << "Initializing language manager...";
     LanguageManager::instance().initialize();
 
     // Create and show main window

@@ -80,9 +80,11 @@ else()
 endif()
 
 # Release构建：禁用调试输出并启用更激进的优化定义
-if (MSVC)
-    target_compile_definitions(LogReader PRIVATE $<$<CONFIG:Release>:NDEBUG;QT_NO_DEBUG_OUTPUT;QT_NO_WARNING_OUTPUT>)
-endif()
+# 为所有编译器在Release模式下禁用调试输出
+target_compile_definitions(LogReader PRIVATE 
+    $<$<CONFIG:Release>:NDEBUG;QT_NO_DEBUG_OUTPUT;QT_NO_WARNING_OUTPUT;QT_NO_INFO_OUTPUT>
+    $<$<CONFIG:Debug>:LOG_DEBUG_ENABLED>
+)
 
 # 创建翻译目标
 add_custom_target(translations ALL DEPENDS ${QM_FILES})

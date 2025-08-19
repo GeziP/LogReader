@@ -921,15 +921,19 @@ void LogViewer::onLanguageManagerChanged(LanguageManager::Language language)
 
 void LogViewer::retranslateUI()
 {
+#ifdef LOG_DEBUG_ENABLED
     qDebug() << "=== Starting UI Retranslation ===";
 
     // Test translation to work
     QString testTranslation = tr("日志查看器");
     qDebug() << "Test translation result:" << testTranslation;
+#endif
 
     // Re-set window title
     setWindowTitle(tr("日志查看器"));
+#ifdef LOG_DEBUG_ENABLED
     qDebug() << "Window title updated to:" << windowTitle();
+#endif
 
     // Re-set menu item text
     if (menuBar()) {
@@ -937,8 +941,10 @@ void LogViewer::retranslateUI()
         for (QMenu* menu : menus) {
             QString oldTitle = menu->title();
             menu->setTitle(tr("文件"));
+#ifdef LOG_DEBUG_ENABLED
             qDebug() << "Menu title changed from" << oldTitle << "to"
                      << menu->title();
+#endif
         }
     }
 
@@ -946,8 +952,10 @@ void LogViewer::retranslateUI()
     if (openAction) {
         QString oldText = openAction->text();
         openAction->setText(tr("打开日志文件"));
+#ifdef LOG_DEBUG_ENABLED
         qDebug() << "Open action text changed from" << oldText << "to"
                  << openAction->text();
+#endif
     }
     if (exportAction)
         exportAction->setText(tr("导出筛选结果"));
@@ -966,20 +974,26 @@ void LogViewer::retranslateUI()
     if (timeGroupBox) {
         QString oldTitle = timeGroupBox->title();
         timeGroupBox->setTitle(tr("时间范围"));
+#ifdef LOG_DEBUG_ENABLED
         qDebug() << "Time group title changed from" << oldTitle << "to"
                  << timeGroupBox->title();
+#endif
     }
     if (levelGroupBox) {
         QString oldTitle = levelGroupBox->title();
         levelGroupBox->setTitle(tr("日志等级"));
+#ifdef LOG_DEBUG_ENABLED
         qDebug() << "Level group title changed from" << oldTitle << "to"
                  << levelGroupBox->title();
+#endif
     }
     if (moduleGroupBox) {
         QString oldTitle = moduleGroupBox->title();
         moduleGroupBox->setTitle(tr("模块选择"));
+#ifdef LOG_DEBUG_ENABLED
         qDebug() << "Module group title changed from" << oldTitle << "to"
                  << moduleGroupBox->title();
+#endif
     }
 
     // Re-set button text
@@ -1016,16 +1030,22 @@ void LogViewer::retranslateUI()
 
         if (newText != oldText) {
             label->setText(newText);
+#ifdef LOG_DEBUG_ENABLED
             qDebug() << "Label updated from" << oldText << "to" << newText;
+#endif
             labelsUpdated++;
         }
     }
+#ifdef LOG_DEBUG_ENABLED
     qDebug() << "Total labels updated:" << labelsUpdated;
+#endif
 
     // Re-set table headers (via view header, since we use custom model)
     if (logTreeView && logTreeView->header()) {
         // Nothing needed; model provides translated headers
+#ifdef LOG_DEBUG_ENABLED
         qDebug() << "Table headers updated via model";
+#endif
     }
 
     // Re-set status bar information
@@ -1042,7 +1062,9 @@ void LogViewer::retranslateUI()
         githubLinkLabel->setToolTip(tr("点击访问GitHub项目页面并给我们点赞"));
     }
 
+#ifdef LOG_DEBUG_ENABLED
     qDebug() << "=== UI Retranslation Completed ===";
+#endif
 }
 
 bool LogViewer::eventFilter(QObject* obj, QEvent* event)

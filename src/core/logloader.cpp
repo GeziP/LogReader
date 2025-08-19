@@ -57,10 +57,12 @@ void LogLoader::process()
 
     qint64 totalBytes = file.size();
     qint64 processedBytes = 0;
+    int lineCount = 0;
 
     while (!in.atEnd()) {
         QString line = in.readLine();
-        processedBytes = file.pos();
+        processedBytes += line.length() + 1; // +1 for newline character
+        lineCount++;
         QRegularExpressionMatch match = regex.match(line);
         if (match.hasMatch()) {
             LogEntry entry;
@@ -88,8 +90,11 @@ void LogLoader::process()
             if (buffer.size() >= m_chunkSize) {
                 emit chunkReady(buffer);
                 buffer.clear();
-                int percent = totalBytes > 0 ? static_cast<int>((processedBytes * 100) / totalBytes) : 0;
-                emit progress(percent);
+                // 仅在块处理完成时计算和发射进度，减少计算频率
+                if (totalBytes > 0) {
+                    int percent = static_cast<int>((processedBytes * 100) / totalBytes);
+                    emit progress(percent);
+                }
             }
         }
     }

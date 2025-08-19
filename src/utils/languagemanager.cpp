@@ -114,7 +114,9 @@ void LanguageManager::setLanguage(Language language)
     // Save to settings
     AppSettings::instance().setLanguage(languageToCode(language));
 
+#ifdef LOG_DEBUG_ENABLED
     qDebug() << "Language changed to:" << languageToDisplayName(language);
+#endif
 
     // Invoke callback function to trigger UI update
     if (languageChangeCallback) {
@@ -191,13 +193,17 @@ QString LanguageManager::languageToDisplayName(Language language) const
 void LanguageManager::loadTranslation(Language language)
 {
     QString languageCode = languageToCode(language);
+#ifdef LOG_DEBUG_ENABLED
     qDebug() << "=== Language Change Request ===";
     qDebug() << "Switching to language:" << languageToDisplayName(language)
-             << "(" << languageCode << ")";
+             << "(" << languageCode << ")";    
+#endif
 
     // For Chinese, no translation file needed (keep original text)
     if (language == Chinese) {
+#ifdef LOG_DEBUG_ENABLED
         qDebug() << "Using Chinese (default language, no translation needed)";
+#endif
         return;
     }
 
@@ -206,11 +212,15 @@ void LanguageManager::loadTranslation(Language language)
 
     // Build translation file path
     QString appDir = QApplication::applicationDirPath();
+#ifdef LOG_DEBUG_ENABLED
     qDebug() << "Application directory:" << appDir;
+#endif
 
     bool loaded = false;
     QString qmFileName = QString("translation_%1").arg(languageCode);
+#ifdef LOG_DEBUG_ENABLED
     qDebug() << "Looking for translation file:" << qmFileName;
+#endif
 
     // Load translation file from file system
     QStringList searchPaths = {
@@ -223,34 +233,48 @@ void LanguageManager::loadTranslation(Language language)
     };
 
     for (const QString& path : searchPaths) {
+#ifdef LOG_DEBUG_ENABLED
         qDebug() << "Trying path:" << path;
+#endif
         QString fullQmPath = path + "/" + qmFileName + ".qm";
+#ifdef LOG_DEBUG_ENABLED
         qDebug() << "Full QM path:" << fullQmPath;
         qDebug() << "QM file exists:" << QFile::exists(fullQmPath);
+#endif
 
         if (currentTranslator->load(qmFileName, path)) {
             loaded = true;
+#ifdef LOG_DEBUG_ENABLED
             qDebug() << "✓ Translation loaded successfully from:" << path;
+#endif
             break;
         } else {
+#ifdef LOG_DEBUG_ENABLED
             qDebug() << "✗ Failed to load from:" << path;
+#endif
         }
     }
 
     if (loaded) {
         // Install translator to QApplication
         bool installed = QApplication::installTranslator(currentTranslator);
+#ifdef LOG_DEBUG_ENABLED
         qDebug() << "Translation installed:"
                  << (installed ? "SUCCESS" : "FAILED");
+#endif
     } else {
+#ifdef LOG_DEBUG_ENABLED
         qDebug() << "ERROR: Failed to load translation for:" << languageCode;
         qDebug() << "Make sure translation files are compiled to .qm format";
+#endif
 
         // Keep translator object even if loading failed to avoid null pointer
         // This still allows UI update to be triggered
     }
 
+#ifdef LOG_DEBUG_ENABLED
     qDebug() << "=== End Language Change ===";
+#endif
 }
 
 /**
