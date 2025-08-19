@@ -52,22 +52,17 @@ jobs:
     - name: Deploy Qt
       run: |
         cd build
-        # Set proper environment for windeployqt
+        # Fix windeployqt environment - set QT_QPA_PLATFORM_PLUGIN_PATH first
+        $env:QT_QPA_PLATFORM_PLUGIN_PATH = "$env:Qt5_Dir\plugins\platforms"
         $env:PATH = "$env:Qt5_Dir\bin;C:\tools\mingw64\bin;$env:PATH"
         $env:QTDIR = "$env:Qt5_Dir"
         
-        # Use windeployqt with proper environment
-        try {
-          & "$env:Qt5_Dir\bin\windeployqt.exe" --release --compiler-runtime --force LogReader.exe
-        } catch {
-          Write-Host "windeployqt failed, trying alternative method..."
-          # Fallback: copy essential files manually
-          Copy-Item "$env:Qt5_Dir\bin\Qt5Core.dll" . -Force
-          Copy-Item "$env:Qt5_Dir\bin\Qt5Gui.dll" . -Force
-          Copy-Item "$env:Qt5_Dir\bin\Qt5Widgets.dll" . -Force
-          New-Item -ItemType Directory -Path "platforms" -Force
-          Copy-Item "$env:Qt5_Dir\plugins\platforms\qwindows.dll" "platforms\" -Force
-        }
+        Write-Host "Qt5_Dir: $env:Qt5_Dir"
+        Write-Host "QT_QPA_PLATFORM_PLUGIN_PATH: $env:QT_QPA_PLATFORM_PLUGIN_PATH"
+        Write-Host "Platform plugin exists: $(Test-Path '$env:Qt5_Dir\plugins\platforms\qwindows.dll')"
+        
+        # Use windeployqt with corrected environment
+        & "$env:Qt5_Dir\bin\windeployqt.exe" --release --compiler-runtime --force --verbose 2 LogReader.exe
         
         # Copy our translations
         Copy-Item "..\translations\*.qm" . -ErrorAction SilentlyContinue
