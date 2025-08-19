@@ -52,23 +52,22 @@ jobs:
     - name: Deploy Qt
       run: |
         cd build
-        # Manual deployment to avoid platform plugin issues
-        $QT_BIN = "$env:Qt5_Dir\bin"
-        $QT_PLUGINS = "$env:Qt5_Dir\plugins"
+        # Set proper environment for windeployqt
+        $env:PATH = "$env:Qt5_Dir\bin;C:\tools\mingw64\bin;$env:PATH"
+        $env:QTDIR = "$env:Qt5_Dir"
         
-        # Copy Qt DLLs
-        Copy-Item "$QT_BIN\Qt5Core.dll" . -ErrorAction SilentlyContinue
-        Copy-Item "$QT_BIN\Qt5Gui.dll" . -ErrorAction SilentlyContinue  
-        Copy-Item "$QT_BIN\Qt5Widgets.dll" . -ErrorAction SilentlyContinue
-        
-        # Copy platform plugins
-        New-Item -ItemType Directory -Path "platforms" -Force
-        Copy-Item "$QT_PLUGINS\platforms\qwindows.dll" "platforms\" -ErrorAction SilentlyContinue
-        
-        # Copy MinGW runtime DLLs
-        Copy-Item "C:\tools\mingw64\bin\libgcc_s_seh-1.dll" . -ErrorAction SilentlyContinue
-        Copy-Item "C:\tools\mingw64\bin\libstdc++-6.dll" . -ErrorAction SilentlyContinue
-        Copy-Item "C:\tools\mingw64\bin\libwinpthread-1.dll" . -ErrorAction SilentlyContinue
+        # Use windeployqt with proper environment
+        try {
+          & "$env:Qt5_Dir\bin\windeployqt.exe" --release --compiler-runtime --force LogReader.exe
+        } catch {
+          Write-Host "windeployqt failed, trying alternative method..."
+          # Fallback: copy essential files manually
+          Copy-Item "$env:Qt5_Dir\bin\Qt5Core.dll" . -Force
+          Copy-Item "$env:Qt5_Dir\bin\Qt5Gui.dll" . -Force
+          Copy-Item "$env:Qt5_Dir\bin\Qt5Widgets.dll" . -Force
+          New-Item -ItemType Directory -Path "platforms" -Force
+          Copy-Item "$env:Qt5_Dir\plugins\platforms\qwindows.dll" "platforms\" -Force
+        }
         
         # Copy our translations
         Copy-Item "..\translations\*.qm" . -ErrorAction SilentlyContinue
