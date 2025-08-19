@@ -34,7 +34,6 @@ jobs:
       with:
         version: ${{ env.QT_VERSION }}
         arch: win64_mingw81
-        tools: 'tools_mingw,8.1.0-1-202004170606'
         
     - name: Compile translations
       run: |
