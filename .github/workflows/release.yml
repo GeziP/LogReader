@@ -52,7 +52,25 @@ jobs:
     - name: Deploy Qt
       run: |
         cd build
-        windeployqt --release --compiler-runtime --no-translations LogReader.exe  
+        # Manual deployment to avoid platform plugin issues
+        $QT_BIN = "$env:Qt5_Dir\bin"
+        $QT_PLUGINS = "$env:Qt5_Dir\plugins"
+        
+        # Copy Qt DLLs
+        Copy-Item "$QT_BIN\Qt5Core.dll" . -ErrorAction SilentlyContinue
+        Copy-Item "$QT_BIN\Qt5Gui.dll" . -ErrorAction SilentlyContinue  
+        Copy-Item "$QT_BIN\Qt5Widgets.dll" . -ErrorAction SilentlyContinue
+        
+        # Copy platform plugins
+        New-Item -ItemType Directory -Path "platforms" -Force
+        Copy-Item "$QT_PLUGINS\platforms\qwindows.dll" "platforms\" -ErrorAction SilentlyContinue
+        
+        # Copy MinGW runtime DLLs
+        Copy-Item "C:\tools\mingw64\bin\libgcc_s_seh-1.dll" . -ErrorAction SilentlyContinue
+        Copy-Item "C:\tools\mingw64\bin\libstdc++-6.dll" . -ErrorAction SilentlyContinue
+        Copy-Item "C:\tools\mingw64\bin\libwinpthread-1.dll" . -ErrorAction SilentlyContinue
+        
+        # Copy our translations
         Copy-Item "..\translations\*.qm" . -ErrorAction SilentlyContinue
         
     - name: Package Windows
