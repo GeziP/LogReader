@@ -469,7 +469,7 @@ void LogViewer::loadLogFile(const QString& filePath)
 
     // Background loader
     QThread* thread = new QThread(this);
-    LogLoader* loader = new LogLoader(filePath, encoding, 20000);
+    LogLoader* loader = new LogLoader(filePath, encoding, 5000);
     qRegisterMetaType<LogEntry>("LogEntry");
     qRegisterMetaType<QVector<LogEntry>>("QVector<LogEntry>");
     loader->moveToThread(thread);

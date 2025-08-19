@@ -61,8 +61,11 @@ void LogLoader::process()
 
     while (!in.atEnd()) {
         QString line = in.readLine();
-        processedBytes += line.length() + 1; // +1 for newline character
         lineCount++;
+        // 每100行才调用一次file.pos()，减少系统调用频率
+        if (lineCount % 100 == 0) {
+            processedBytes = file.pos();
+        }
         QRegularExpressionMatch match = regex.match(line);
         if (match.hasMatch()) {
             LogEntry entry;
@@ -103,6 +106,9 @@ void LogLoader::process()
         emit chunkReady(buffer);
         buffer.clear();
     }
+
+    // 最后确保获得准确的文件位置
+    processedBytes = file.pos();
 
     QStringList modules = QStringList(modulesSet.cbegin(), modulesSet.cend());
     QStringList levels = QStringList(levelsSet.cbegin(), levelsSet.cend());
