@@ -24,13 +24,17 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
       
+    - name: Install MinGW
+      run: |
+        choco install mingw --version 8.1.0 --allow-downgrade --force
+        echo "C:\\tools\\mingw64\\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        
     - name: Install Qt
       uses: jurplel/install-qt-action@v3
       with:
         version: ${{ env.QT_VERSION }}
         arch: win64_mingw81
-        
-
+        tools: 'tools_mingw,8.1.0-1-202004170606'
         
     - name: Compile translations
       run: |
@@ -43,20 +47,14 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release
-        cmake --build . --config Release -- /m
+        cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+        mingw32-make -j4
         
     - name: Deploy Qt
       run: |
         cd build
-        if (Test-Path "Release\LogReader.exe") {
-          cd Release
-          windeployqt --release --compiler-runtime LogReader.exe
-          Copy-Item "..\..\translations\*.qm" . -ErrorAction SilentlyContinue
-        } else {
-          windeployqt --release --compiler-runtime LogReader.exe  
-          Copy-Item "..\translations\*.qm" . -ErrorAction SilentlyContinue
-        }
+        windeployqt --release --compiler-runtime LogReader.exe  
+        Copy-Item "..\translations\*.qm" . -ErrorAction SilentlyContinue
         
     - name: Package Windows
       run: |
@@ -70,11 +68,7 @@ jobs:
         New-Item -ItemType Directory $PACKAGE -Force
         
         cd build
-        if (Test-Path "Release") {
-          Copy-Item "Release\*" "..\$PACKAGE\" -Recurse -Force
-        } else {
-          Get-ChildItem . -Exclude "CMakeFiles","*.cmake","CMakeCache.txt","*.vcxproj*","*.sln" | Copy-Item -Destination "..\$PACKAGE\" -Recurse -Force
-        }
+        Get-ChildItem . -Exclude "CMakeFiles","*.cmake","CMakeCache.txt","*.o","Makefile" | Copy-Item -Destination "..\$PACKAGE\" -Recurse -Force
         
         cd ..
         Copy-Item "README.md" "$PACKAGE\" -ErrorAction SilentlyContinue
