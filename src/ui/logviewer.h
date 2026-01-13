@@ -161,6 +161,13 @@ private slots:
      */
     void onSearchNext();
 
+    /**
+     * @brief Handle export search results action
+     * @details Opens export dialog for user to choose format and options
+     *          for exporting log entries that match the current search term.
+     */
+    void onExportSearchResults();
+
     // Display operations
     /**
      * @brief Handle double-click on log items
@@ -320,6 +327,14 @@ private:
      */
     QList<LogEntry> getCurrentFilteredLogs() const;
 
+    /**
+     * @brief Get log entries matching current search term
+     * @return List of log entries that contain the current search text
+     * @details Extracts log entries from searchResults indices,
+     *          useful for exporting search matches.
+     */
+    QList<LogEntry> getSearchMatchedLogs() const;
+
     // UI Controls - Filter area
     QDateTimeEdit*
         startTimeEdit; ///< Start time selector for time range filtering
@@ -358,6 +373,7 @@ private:
     QPushButton*
         searchPreviousButton;      ///< Button to go to previous search result
     QPushButton* searchNextButton; ///< Button to go to next search result
+    QPushButton* exportSearchResultsButton; ///< Button to export search results
 
     // UI Controls - GitHub link
     QLabel* githubLinkLabel; ///< Clickable GitHub link in status bar

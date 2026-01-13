@@ -70,6 +70,11 @@
         <translation>Next</translation>
     </message>
     <message>
+        <location filename="../logviewer.cpp" line="254"/>
+        <source>导出搜索结果</source>
+        <translation>Export Search Results</translation>
+    </message>
+    <message>
         <location filename="../logviewer.cpp" line="281"/>
         <source>文件</source>
         <translation>File</translation>
@@ -188,6 +193,42 @@
         <location filename="../logviewer.cpp" line="783"/>
         <source>日志详情</source>
         <translation>Log details</translation>
+    </message>
+    <message>
+        <source>提示</source>
+        <translation>Information</translation>
+    </message>
+    <message>
+        <source>请先输入搜索内容</source>
+        <translation>Please enter search content first</translation>
+    </message>
+    <message>
+        <source>没有找到匹配的搜索结果</source>
+        <translation>No matching search results found</translation>
+    </message>
+    <message>
+        <source>没有匹配的日志数据可以导出</source>
+        <translation>No matching log data to export</translation>
+    </message>
+    <message>
+        <source>没有日志数据可以导出</source>
+        <translation>No log data to export</translation>
+    </message>
+    <message>
+        <source>当前筛选条件下没有日志数据</source>
+        <translation>No log data under current filter conditions</translation>
+    </message>
+    <message>
+        <source>导出完成</source>
+        <translation>Export Complete</translation>
+    </message>
+    <message>
+        <source>导出失败</source>
+        <translation>Export Failed</translation>
+    </message>
+    <message>
+        <source>已导出 %1 格式到: %2</source>
+        <translation>Exported %1 format to: %2</translation>
     </message>
 </context>
 <context>

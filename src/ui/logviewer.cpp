@@ -313,15 +313,19 @@ void LogViewer::setupUI()
 
     searchPreviousButton = new QPushButton(tr("上一条"), this);
     searchNextButton = new QPushButton(tr("下一条"), this);
+    exportSearchResultsButton = new QPushButton(tr("导出搜索结果"), this);
     connect(searchPreviousButton, &QPushButton::clicked, this,
             &LogViewer::onSearchPrevious);
     connect(searchNextButton, &QPushButton::clicked, this,
             &LogViewer::onSearchNext);
+    connect(exportSearchResultsButton, &QPushButton::clicked, this,
+            &LogViewer::onExportSearchResults);
 
     QHBoxLayout* searchLayout = new QHBoxLayout();
     searchLayout->addWidget(searchLineEdit);
     searchLayout->addWidget(searchPreviousButton);
     searchLayout->addWidget(searchNextButton);
+    searchLayout->addWidget(exportSearchResultsButton);
     searchLayout->addStretch();
 
     // Main layout
@@ -874,6 +878,75 @@ void LogViewer::onExportFiltered()
     }
 }
 
+void LogViewer::onExportSearchResults()
+{
+    if (currentSearchText.isEmpty()) {
+        QMessageBox::information(this, tr("提示"), tr("请先输入搜索内容"));
+        return;
+    }
+
+    if (searchResults.isEmpty()) {
+        QMessageBox::information(this, tr("提示"),
+                                 tr("没有找到匹配的搜索结果"));
+        return;
+    }
+
+    // Get search matched logs
+    QList<LogEntry> matchedLogs = getSearchMatchedLogs();
+
+    if (matchedLogs.isEmpty()) {
+        QMessageBox::information(this, tr("提示"),
+                                 tr("没有匹配的日志数据可以导出"));
+        return;
+    }
+
+    // Show export dialog
+    ExportDialog dialog(this);
+    dialog.setWindowTitle(tr("导出搜索结果"));
+    dialog.setLogCount(matchedLogs.size());
+
+    if (dialog.exec() == QDialog::Accepted) {
+        ExportConfig config = dialog.getExportConfig();
+
+        // Create exporter and execute export
+        LogExporter* exporter = new LogExporter(this);
+
+        // Connect progress signal
+        connect(exporter, &LogExporter::progressChanged,
+                [this](int percentage) { progressBar->setValue(percentage); });
+
+        connect(exporter, &LogExporter::formatExported,
+                [this](const QString& format, const QString& filePath) {
+                    statusBar()->showMessage(
+                        tr("已导出 %1 格式到: %2").arg(format).arg(filePath),
+                        3000);
+                });
+
+        connect(exporter, &LogExporter::exportFinished,
+                [this, exporter](bool success, const QString& message) {
+                    progressBar->setVisible(false);
+                    if (success) {
+                        QMessageBox::information(this, tr("导出完成"), message);
+                    } else {
+                        QMessageBox::warning(this, tr("导出失败"), message);
+                    }
+                    exporter->deleteLater(); // Clean up exporter object
+                });
+
+        // Show progress bar
+        progressBar->setVisible(true);
+        progressBar->setRange(0, 100);
+        progressBar->setValue(0);
+
+        // Execute export
+        if (config.formats.size() > 1) {
+            exporter->exportMultipleFormats(matchedLogs, config);
+        } else {
+            exporter->exportLogs(matchedLogs, config);
+        }
+    }
+}
+
 QList<LogEntry> LogViewer::getCurrentFilteredLogs() const
 {
     if (!proxyModel || !sourceModel) {
@@ -890,6 +963,27 @@ QList<LogEntry> LogViewer::getCurrentFilteredLogs() const
     }
 
     return filteredLogs;
+}
+
+QList<LogEntry> LogViewer::getSearchMatchedLogs() const
+{
+    if (!proxyModel || !sourceModel || searchResults.isEmpty()) {
+        return QList<LogEntry>();
+    }
+
+    QList<LogEntry> matchedLogs;
+
+    for (int proxyRow : searchResults) {
+        if (proxyRow >= 0 && proxyRow < proxyModel->rowCount()) {
+            QModelIndex srcIndex = proxyModel->mapToSource(proxyModel->index(proxyRow, 0));
+            int srcRow = srcIndex.row();
+            if (srcRow >= 0 && srcRow < sourceModel->size()) {
+                matchedLogs.append(sourceModel->at(srcRow));
+            }
+        }
+    }
+
+    return matchedLogs;
 }
 
 void LogViewer::onLanguageChanged(int index)
@@ -1005,6 +1099,8 @@ void LogViewer::retranslateUI()
         searchPreviousButton->setText(tr("上一条"));
     if (searchNextButton)
         searchNextButton->setText(tr("下一条"));
+    if (exportSearchResultsButton)
+        exportSearchResultsButton->setText(tr("导出搜索结果"));
 
     // Re-set search line edit placeholder text
     if (searchLineEdit)

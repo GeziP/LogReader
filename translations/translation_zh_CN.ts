@@ -70,6 +70,11 @@
         <translation></translation>
     </message>
     <message>
+        <location filename="../src/ui/logviewer.cpp" line="254"/>
+        <source>导出搜索结果</source>
+        <translation></translation>
+    </message>
+    <message>
         <location filename="../src/ui/logviewer.cpp" line="281"/>
         <source>文件</source>
         <translation></translation>
@@ -133,6 +138,42 @@
     <message>
         <location filename="../src/ui/logviewer.cpp" line="783"/>
         <source>日志详情</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>提示</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>请先输入搜索内容</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>没有找到匹配的搜索结果</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>没有匹配的日志数据可以导出</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>没有日志数据可以导出</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>当前筛选条件下没有日志数据</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>导出完成</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>导出失败</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>已导出 %1 格式到: %2</source>
         <translation></translation>
     </message>
 </context>
