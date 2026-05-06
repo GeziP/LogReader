@@ -20,7 +20,6 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QJsonValue>
 #include <QTextStream>
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QTextCodec>
@@ -329,14 +328,19 @@ bool LogExporter::exportToJson(const QList<LogEntry>& logs,
         if (i > 0) out << ",\n";
         out << "  {\n";
 
+        // Wrap in QJsonArray to get proper JSON string escaping
+        auto jsonEscape = [](const QString& s) -> QString {
+            QJsonArray arr;
+            arr.append(s);
+            QString json = QJsonDocument(arr).toJson(QJsonDocument::Compact);
+            return json.mid(1, json.size() - 2); // strip [ and ]
+        };
+
         bool first = true;
         auto writeField = [&](const QString& key, const QString& value) {
             if (!first) out << ",\n";
             first = false;
-            // Use QJsonValue for proper JSON string escaping
-            out << "    " << QJsonDocument(QJsonValue(key)).toJson(QJsonDocument::Compact)
-                << ": "
-                << QJsonDocument(QJsonValue(value)).toJson(QJsonDocument::Compact);
+            out << "    " << jsonEscape(key) << ": " << jsonEscape(value);
         };
 
         if (config.includeTimestamp) {
