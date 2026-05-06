@@ -55,6 +55,8 @@ jobs:
           cmake --build build -- -j$(nproc)
 
       - name: Run Tests
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: |
           cd build
           ctest --output-on-failure --verbose
@@ -160,6 +162,8 @@ jobs:
         run: cmake --build build -- -j$(nproc)
 
       - name: Run Tests with Sanitizers
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: |
           cd build
           ctest --output-on-failure --verbose
@@ -192,6 +196,8 @@ jobs:
         run: cmake --build build -- -j$(nproc)
 
       - name: Run Tests
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: |
           cd build
           ctest --output-on-failure --verbose
