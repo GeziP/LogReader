@@ -615,6 +615,14 @@ void LogViewer::onSearchTextChanged(const QString& text)
     searchDebounceTimer->start();
 }
 
+void LogViewer::flushSearchDebounce()
+{
+    if (searchDebounceTimer->isActive()) {
+        searchDebounceTimer->stop();
+        highlightSearchMatches();
+    }
+}
+
 void LogViewer::highlightSearchMatches()
 {
     logTreeView->setUpdatesEnabled(false);
@@ -668,6 +676,7 @@ void LogViewer::expandToItem(QStandardItem* item)
 
 void LogViewer::onSearchPrevious()
 {
+    flushSearchDebounce();
     if (searchResults.isEmpty())
         return;
 
@@ -683,6 +692,7 @@ void LogViewer::onSearchPrevious()
 
 void LogViewer::onSearchNext()
 {
+    flushSearchDebounce();
     if (searchResults.isEmpty())
         return;
 
@@ -786,6 +796,7 @@ void LogViewer::onExportFiltered()
 
 void LogViewer::onExportSearchResults()
 {
+    flushSearchDebounce();
     if (currentSearchText.isEmpty()) {
         QMessageBox::information(this, tr("提示"), tr("请先输入搜索内容"));
         return;

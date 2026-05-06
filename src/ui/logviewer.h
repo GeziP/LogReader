@@ -253,6 +253,7 @@ private:
      *          making them visually distinct for easy identification.
      */
     void highlightSearchMatches();
+    void flushSearchDebounce();
 
     /**
      * @brief Expand tree view to show specified item
