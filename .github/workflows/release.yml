@@ -11,7 +11,7 @@ permissions:
   actions: read
 
 env:
-  QT_VERSION: '6.5.3'
+  QT_VERSION: '5.14.2'
 
 jobs:
   build-windows:
@@ -126,7 +126,7 @@ jobs:
 
   build-macos:
     name: Build macOS
-    runs-on: macos-latest
+    runs-on: macos-13
 
     steps:
     - name: Checkout
@@ -143,7 +143,7 @@ jobs:
 
     - name: Build
       run: |
-        cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_DEPLOY=ON -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+        cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_DEPLOY=ON -DCMAKE_OSX_ARCHITECTURES="x86_64"
         cmake --build build -- -j$(sysctl -n hw.ncpu)
 
     - name: Deploy Qt and Create App Bundle
