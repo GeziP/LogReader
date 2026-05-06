@@ -20,6 +20,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonValue>
 #include <QTextStream>
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QTextCodec>
@@ -207,15 +208,13 @@ bool LogExporter::exportToTxt(const QList<LogEntry>& logs,
         return false;
     }
 
-    // Write UTF-8 BOM to ensure Windows correctly recognizes encoding
-    file.write("\xEF\xBB\xBF");
-
     QTextStream out(&file);
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     out.setCodec("UTF-8");
 #else
     out.setEncoding(QStringConverter::Utf8);
 #endif
+    out.setGenerateByteOrderMark(true);
 
     // Write each log entry as a formatted line
     for (int i = 0; i < logs.size(); ++i) {
@@ -223,7 +222,13 @@ bool LogExporter::exportToTxt(const QList<LogEntry>& logs,
         QString line = formatLogEntry(entry, config, ExportConfig::TXT);
         out << line << "\n";
 
-        emitProgress(i + 1, logs.size());
+        if (i % 1000 == 0 || i == logs.size() - 1)
+            emitProgress(i + 1, logs.size());
+    }
+
+    if (out.status() != QTextStream::Ok) {
+        emit exportFinished(false, tr("写入文件失败: %1").arg(filePath));
+        return false;
     }
 
     return true;
@@ -249,15 +254,13 @@ bool LogExporter::exportToCsv(const QList<LogEntry>& logs,
         return false;
     }
 
-    // Write UTF-8 BOM to ensure Windows correctly recognizes encoding
-    file.write("\xEF\xBB\xBF");
-
     QTextStream out(&file);
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     out.setCodec("UTF-8");
 #else
     out.setEncoding(QStringConverter::Utf8);
 #endif
+    out.setGenerateByteOrderMark(true);
 
     // Write CSV header row based on included fields
     QStringList headers;
@@ -278,7 +281,13 @@ bool LogExporter::exportToCsv(const QList<LogEntry>& logs,
         QString line = formatLogEntry(entry, config, ExportConfig::CSV);
         out << line << "\n";
 
-        emitProgress(i + 1, logs.size());
+        if (i % 1000 == 0 || i == logs.size() - 1)
+            emitProgress(i + 1, logs.size());
+    }
+
+    if (out.status() != QTextStream::Ok) {
+        emit exportFinished(false, tr("写入文件失败: %1").arg(filePath));
+        return false;
     }
 
     return true;
@@ -298,44 +307,63 @@ bool LogExporter::exportToJson(const QList<LogEntry>& logs,
                                const ExportConfig& config,
                                const QString& filePath)
 {
-    QJsonArray logArray;
-
-    // Convert each log entry to JSON object
-    for (int i = 0; i < logs.size(); ++i) {
-        const LogEntry& entry = logs[i];
-        QJsonObject logObject;
-
-        // Add fields based on configuration
-        if (config.includeTimestamp) {
-            logObject["timestamp"] =
-                entry.timestamp.toString("yyyy-MM-dd HH:mm:ss.zzz");
-        }
-        if (config.includeLevel) {
-            logObject["level"] = entry.level;
-        }
-        if (config.includeModule) {
-            logObject["module"] = entry.module;
-        }
-        if (config.includeContent) {
-            logObject["content"] = entry.message;
-        }
-
-        logArray.append(logObject);
-        emitProgress(i + 1, logs.size());
-    }
-
-    // Write JSON document to file
-    QJsonDocument doc(logArray);
-
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         emit exportFinished(false, tr("无法创建文件: %1").arg(filePath));
         return false;
     }
 
-    // Write UTF-8 BOM for consistency
-    file.write("\xEF\xBB\xBF");
-    file.write(doc.toJson(QJsonDocument::Indented));
+    // JSON must NOT have BOM per RFC 8259
+    QTextStream out(&file);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    out.setCodec("UTF-8");
+#else
+    out.setEncoding(QStringConverter::Utf8);
+#endif
+
+    // Stream JSON array to avoid building entire document in memory
+    out << "[\n";
+    for (int i = 0; i < logs.size(); ++i) {
+        const LogEntry& entry = logs[i];
+
+        if (i > 0) out << ",\n";
+        out << "  {\n";
+
+        bool first = true;
+        auto writeField = [&](const QString& key, const QString& value) {
+            if (!first) out << ",\n";
+            first = false;
+            // Use QJsonValue for proper JSON string escaping
+            out << "    " << QJsonDocument(QJsonValue(key)).toJson(QJsonDocument::Compact)
+                << ": "
+                << QJsonDocument(QJsonValue(value)).toJson(QJsonDocument::Compact);
+        };
+
+        if (config.includeTimestamp) {
+            writeField("timestamp",
+                       entry.timestamp.toString("yyyy-MM-dd HH:mm:ss.zzz"));
+        }
+        if (config.includeLevel) {
+            writeField("level", entry.level);
+        }
+        if (config.includeModule) {
+            writeField("module", entry.module);
+        }
+        if (config.includeContent) {
+            writeField("content", entry.message);
+        }
+
+        out << "\n  }";
+
+        if (i % 1000 == 0 || i == logs.size() - 1)
+            emitProgress(i + 1, logs.size());
+    }
+    out << "\n]\n";
+
+    if (out.status() != QTextStream::Ok) {
+        emit exportFinished(false, tr("写入文件失败: %1").arg(filePath));
+        return false;
+    }
 
     return true;
 }

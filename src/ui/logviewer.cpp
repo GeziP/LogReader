@@ -871,6 +871,10 @@ void LogViewer::onExportFiltered()
         progressBar->setRange(0, 100);
         progressBar->setValue(0);
 
+        // TODO: Export runs on the main thread and will block the UI for large
+        // datasets. This should be moved to a worker thread (QThread) in the
+        // future so the UI remains responsive during export.
+
         // Execute export
         if (config.formats.size() > 1) {
             exporter->exportMultipleFormats(filteredLogs, config);
@@ -939,6 +943,10 @@ void LogViewer::onExportSearchResults()
         progressBar->setVisible(true);
         progressBar->setRange(0, 100);
         progressBar->setValue(0);
+
+        // TODO: Export runs on the main thread and will block the UI for large
+        // datasets. This should be moved to a worker thread (QThread) in the
+        // future so the UI remains responsive during export.
 
         // Execute export
         if (config.formats.size() > 1) {
