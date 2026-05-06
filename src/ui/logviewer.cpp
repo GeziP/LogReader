@@ -19,6 +19,7 @@
 #include <QDateTimeEdit>
 #include <QFile>
 #include <QFileDialog>
+#include <QTimer>
 #include <QFileInfo>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -50,6 +51,7 @@
 #endif
 #include <QBrush>
 #include <QDebug>
+#include <utility>
 #include <QDesktopServices>
 #include <QEvent>
 #include <QFont>
@@ -75,7 +77,7 @@
  * functionality.
  */
 LogViewer::LogViewer(QWidget* parent)
-    : QMainWindow(parent), sourceModel(nullptr), proxyModel(nullptr), highlightDelegate(nullptr), currentSearchIndex(-1)
+    : QMainWindow(parent), sourceModel(nullptr), proxyModel(nullptr), highlightDelegate(nullptr), currentSearchIndex(-1), searchDebounceTimer(nullptr)
 {
     setupUI();
 
@@ -309,6 +311,13 @@ void LogViewer::setupUI()
     connect(searchLineEdit, &QLineEdit::textChanged, this,
             &LogViewer::onSearchTextChanged);
 
+    // Search debounce timer to avoid re-scanning on every keystroke
+    searchDebounceTimer = new QTimer(this);
+    searchDebounceTimer->setSingleShot(true);
+    searchDebounceTimer->setInterval(200);
+    connect(searchDebounceTimer, &QTimer::timeout, this,
+            &LogViewer::highlightSearchMatches);
+
     searchPreviousButton = new QPushButton(tr("上一条"), this);
     searchNextButton = new QPushButton(tr("下一条"), this);
     exportSearchResultsButton = new QPushButton(tr("导出搜索结果"), this);
@@ -466,7 +475,6 @@ void LogViewer::loadLogFile(const QString& filePath)
     progressBar->setValue(0);
 
     // Clear previous data
-    allLogs.clear();
     sourceModel->clear();
 
     // Background loader
@@ -487,9 +495,7 @@ void LogViewer::loadLogFile(const QString& filePath)
 #endif
 
     connect(loader, &LogLoader::chunkReady, this, [this](QVector<LogEntry> chunk) {
-        // Append to in-memory cache and model
-        for (const auto& e : chunk) allLogs.append(e);
-        sourceModel->appendRows(chunk);
+        sourceModel->appendRows(std::move(chunk));
     });
     connect(loader, &LogLoader::summaryReady, this, [this](const QDateTime& minTime, const QDateTime& maxTime, const QStringList& modules, const QStringList& levels) {
         startTimeEdit->setDateTime(minTime);
@@ -524,7 +530,7 @@ void LogViewer::loadLogFile(const QString& filePath)
 
         progressBar->setVisible(false);
         exportAction->setEnabled(true);
-        statusBar()->showMessage(tr("已加载文件：%1，日志条目数：%2").arg(filePath).arg(allLogs.size()));
+        statusBar()->showMessage(tr("已加载文件：%1，日志条目数：%2").arg(filePath).arg(sourceModel->rowCount()));
         loader->deleteLater();
         thread->quit();
         thread->wait();
@@ -694,7 +700,7 @@ void LogViewer::deselectAllModules()
 void LogViewer::onSearchTextChanged(const QString& text)
 {
     currentSearchText = text;
-    highlightSearchMatches();
+    searchDebounceTimer->start();
 }
 
 void LogViewer::highlightSearchMatches()
@@ -820,7 +826,7 @@ void LogViewer::onTreeItemExpanded(const QModelIndex& index)
 
 void LogViewer::onExportFiltered()
 {
-    if (allLogs.isEmpty()) {
+    if (sourceModel->rowCount() == 0) {
         QMessageBox::information(this, tr("提示"), tr("没有日志数据可以导出"));
         return;
     }

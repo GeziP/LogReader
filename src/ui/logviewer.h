@@ -46,6 +46,8 @@ class QLabel;
 class QMenu;
 QT_END_NAMESPACE
 
+class QTimer;
+
 // Forward declarations for application classes (global namespace)
 class LogTableModel;
 class LogFilterProxyModel;
@@ -389,7 +391,6 @@ private:
     QLabel* githubLinkLabel; ///< Clickable GitHub link in status bar
 
     // Data storage
-    QList<LogEntry> allLogs;   ///< Complete list of loaded log entries
     QStringList allModules;    ///< List of all unique modules found in logs
     QStringList allLevels;     ///< List of all unique log levels found
     QString currentFilePath;   ///< Path of currently loaded log file
@@ -397,6 +398,7 @@ private:
     QVector<int> searchResults; ///< Row indices in proxy model matching search
     int currentSearchIndex;    ///< Index of currently selected search result
     QFont logFont;             ///< Font used for displaying log content
+    QTimer* searchDebounceTimer; ///< Debounce timer for search input
 };
 
 #endif // LOGVIEWER_H
