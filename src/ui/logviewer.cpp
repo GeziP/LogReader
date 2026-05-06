@@ -591,6 +591,12 @@ QList<LogEntry> LogViewer::parseLogFile(const QString& filePath,
 
 void LogViewer::onFilterButtonClicked()
 {
+    // Clear search state before filter changes to avoid stale proxy row indices
+    searchResults.clear();
+    currentSearchIndex = -1;
+    currentSearchText.clear();
+    searchLineEdit->clear();
+
     QDateTime startTime = startTimeEdit->dateTime();
     QDateTime endTime = endTimeEdit->dateTime();
     QStringList selectedLevels;
