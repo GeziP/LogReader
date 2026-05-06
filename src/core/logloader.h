@@ -1,12 +1,12 @@
 #ifndef LOGLOADER_H
 #define LOGLOADER_H
 
-#include <QObject>
 #include <QDateTime>
 #include <QList>
-#include <QVector>
+#include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QVector>
 
 #include "logentry.h"
 
@@ -19,10 +19,8 @@ class LogLoader : public QObject
     Q_OBJECT
 
 public:
-    explicit LogLoader(const QString& filePath,
-                       const QString& encoding,
-                       int chunkSize = 5000,
-                       QObject* parent = nullptr);
+    explicit LogLoader(const QString& filePath, const QString& encoding,
+                       int chunkSize = 5000, QObject* parent = nullptr);
 
 public slots:
     void process();
@@ -30,10 +28,8 @@ public slots:
 signals:
     void chunkReady(QVector<LogEntry> chunk);
     void progress(int percentage);
-    void summaryReady(const QDateTime& minTime,
-                      const QDateTime& maxTime,
-                      const QStringList& modules,
-                      const QStringList& levels);
+    void summaryReady(const QDateTime& minTime, const QDateTime& maxTime,
+                      const QStringList& modules, const QStringList& levels);
     void finished();
     void error(const QString& message);
 
@@ -44,5 +40,3 @@ private:
 };
 
 #endif // LOGLOADER_H
-
-
