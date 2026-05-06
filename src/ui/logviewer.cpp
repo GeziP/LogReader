@@ -79,11 +79,9 @@ LogViewer::LogViewer(QWidget* parent)
 {
     setupUI();
 
-    // Set up language manager callback function for dynamic UI updates
-    LanguageManager::instance().setLanguageChangeCallback(
-        [this](LanguageManager::Language language) {
-            this->onLanguageManagerChanged(language);
-        });
+    // Connect language manager signal for dynamic UI updates
+    connect(&LanguageManager::instance(), &LanguageManager::languageChanged,
+            this, &LogViewer::onLanguageManagerChanged);
 }
 
 /**
@@ -178,18 +176,18 @@ void LogViewer::setupUI()
     filterWidget = new QWidget(this);
 
     // Time range selection controls
-    QLabel* startLabel = new QLabel(tr("开始时间:"), this);
+    startTimeLabel = new QLabel(tr("开始时间:"), this);
     startTimeEdit = new QDateTimeEdit(this);
     startTimeEdit->setDisplayFormat("yyyy-MM-dd HH:mm:ss");
 
-    QLabel* endLabel = new QLabel(tr("结束时间:"), this);
+    endTimeLabel = new QLabel(tr("结束时间:"), this);
     endTimeEdit = new QDateTimeEdit(this);
     endTimeEdit->setDisplayFormat("yyyy-MM-dd HH:mm:ss");
 
     QHBoxLayout* timeLayout = new QHBoxLayout();
-    timeLayout->addWidget(startLabel);
+    timeLayout->addWidget(startTimeLabel);
     timeLayout->addWidget(startTimeEdit);
-    timeLayout->addWidget(endLabel);
+    timeLayout->addWidget(endTimeLabel);
     timeLayout->addWidget(endTimeEdit);
     timeLayout->addStretch();
 
@@ -253,7 +251,7 @@ void LogViewer::setupUI()
     moduleGroupBox->setLayout(moduleGroupLayout);
 
     // Encoding selection
-    QLabel* encodingLabel = new QLabel(tr("文件编码:"), this);
+    encodingLabel = new QLabel(tr("文件编码:"), this);
     encodingComboBox = new QComboBox(this);
     encodingComboBox->addItems({"UTF-8", "GB18030", "GB2312"});
     encodingComboBox->setCurrentText("UTF-8");
@@ -346,7 +344,7 @@ void LogViewer::setupUI()
 
     // Menu bar
     QMenuBar* menuBar = new QMenuBar(this);
-    QMenu* fileMenu = menuBar->addMenu(tr("文件"));
+    fileMenu = menuBar->addMenu(tr("文件"));
     openAction =
         fileMenu->addAction(QIcon(":/icons/open.png"), tr("打开日志文件"));
     connect(openAction, &QAction::triggered, this, &LogViewer::openLogFile);
@@ -376,7 +374,7 @@ void LogViewer::setupUI()
     toolBar->addSeparator();
 
     // Language switch widget
-    QLabel* languageLabel = new QLabel(tr("语言:"), this);
+    languageLabel = new QLabel(tr("语言:"), this);
     languageComboBox = new QComboBox(this);
 
     // Initialize language options
@@ -474,8 +472,6 @@ void LogViewer::loadLogFile(const QString& filePath)
     // Background loader
     QThread* thread = new QThread(this);
     LogLoader* loader = new LogLoader(filePath, encoding, 5000);
-    qRegisterMetaType<LogEntry>("LogEntry");
-    qRegisterMetaType<QVector<LogEntry>>("QVector<LogEntry>");
     loader->moveToThread(thread);
 
     connect(thread, &QThread::started, loader, &LogLoader::process);
@@ -1030,17 +1026,8 @@ void LogViewer::retranslateUI()
 #endif
 
     // Re-set menu item text
-    if (menuBar()) {
-        QList<QMenu*> menus = menuBar()->findChildren<QMenu*>();
-        for (QMenu* menu : menus) {
-            QString oldTitle = menu->title();
-            menu->setTitle(tr("文件"));
-#ifdef LOG_DEBUG_ENABLED
-            qDebug() << "Menu title changed from" << oldTitle << "to"
-                     << menu->title();
-#endif
-        }
-    }
+    if (fileMenu)
+        fileMenu->setTitle(tr("文件"));
 
     // Re-set action text
     if (openAction) {
@@ -1106,35 +1093,11 @@ void LogViewer::retranslateUI()
     if (searchLineEdit)
         searchLineEdit->setPlaceholderText(tr("搜索..."));
 
-    // Re-set language label text
-    QList<QLabel*> allLabels = findChildren<QLabel*>();
-    int labelsUpdated = 0;
-    for (QLabel* label : allLabels) {
-        QString oldText = label->text();
-        QString newText = oldText;
-
-        if (oldText.contains("开始时间") || oldText.contains("Start")) {
-            newText = tr("开始时间:");
-        } else if (oldText.contains("结束时间") || oldText.contains("Finish")) {
-            newText = tr("结束时间:");
-        } else if (oldText.contains("文件编码") ||
-                   oldText.contains("encoding")) {
-            newText = tr("文件编码:");
-        } else if (oldText.contains("语言") || oldText.contains("Language")) {
-            newText = tr("语言:");
-        }
-
-        if (newText != oldText) {
-            label->setText(newText);
-#ifdef LOG_DEBUG_ENABLED
-            qDebug() << "Label updated from" << oldText << "to" << newText;
-#endif
-            labelsUpdated++;
-        }
-    }
-#ifdef LOG_DEBUG_ENABLED
-    qDebug() << "Total labels updated:" << labelsUpdated;
-#endif
+    // Re-set label text directly via member pointers
+    if (startTimeLabel) startTimeLabel->setText(tr("开始时间:"));
+    if (endTimeLabel) endTimeLabel->setText(tr("结束时间:"));
+    if (encodingLabel) encodingLabel->setText(tr("文件编码:"));
+    if (languageLabel) languageLabel->setText(tr("语言:"));
 
     // Re-set table headers (via view header, since we use custom model)
     if (logTreeView && logTreeView->header()) {

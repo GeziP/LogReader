@@ -262,13 +262,13 @@ bool LogExporter::exportToCsv(const QList<LogEntry>& logs,
     // Write CSV header row based on included fields
     QStringList headers;
     if (config.includeTimestamp)
-        headers << "时间戳";
+        headers << QObject::tr("时间戳");
     if (config.includeLevel)
-        headers << "日志等级";
+        headers << QObject::tr("日志等级");
     if (config.includeModule)
-        headers << "模块";
+        headers << QObject::tr("模块");
     if (config.includeContent)
-        headers << "内容";
+        headers << QObject::tr("内容");
 
     out << headers.join(",") << "\n";
 

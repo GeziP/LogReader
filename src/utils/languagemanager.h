@@ -15,9 +15,9 @@
 
 #include <QApplication>
 #include <QMap>
+#include <QObject>
 #include <QString>
 #include <QTranslator>
-#include <functional>
 
 /**
  * @class LanguageManager
@@ -40,8 +40,10 @@
  * manager.setLanguage(LanguageManager::English);
  * @endcode
  */
-class LanguageManager
+class LanguageManager : public QObject
 {
+    Q_OBJECT
+
 public:
     /**
      * @enum Language
@@ -127,13 +129,14 @@ public:
      */
     QString languageToDisplayName(Language language) const;
 
+signals:
     /**
-     * @brief Set callback function for language change notifications
-     * @param callback Function to call when language changes
-     * @details The callback is invoked after successful language change to
-     *          allow UI components to refresh their displayed text
+     * @brief Signal emitted when language changes
+     * @param language The new language that has been set
+     * @details Connected receivers can update their UI in response.
+     *          Qt auto-disconnects when the receiver is destroyed.
      */
-    void setLanguageChangeCallback(std::function<void(Language)> callback);
+    void languageChanged(Language language);
 
 private:
     /**
@@ -179,9 +182,6 @@ private:
         languageCodes;          ///< Mapping of Language enum to language codes
     QMap<Language, QString>
         displayNames;           ///< Mapping of Language enum to display names
-    std::function<void(Language)>
-        languageChangeCallback; ///< Callback function for language change
-                                ///< events
 };
 
 #endif // LANGUAGEMANAGER_H

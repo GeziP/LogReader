@@ -43,6 +43,7 @@ class QSplitter;
 class QModelIndex;
 class QHBoxLayout;
 class QLabel;
+class QMenu;
 QT_END_NAMESPACE
 
 // Forward declarations for application classes (global namespace)
@@ -374,6 +375,15 @@ private:
         searchPreviousButton;      ///< Button to go to previous search result
     QPushButton* searchNextButton; ///< Button to go to next search result
     QPushButton* exportSearchResultsButton; ///< Button to export search results
+
+    // UI Controls - Retranslatable labels
+    QLabel* startTimeLabel = nullptr;  ///< Label for start time selector
+    QLabel* endTimeLabel = nullptr;    ///< Label for end time selector
+    QLabel* encodingLabel = nullptr;   ///< Label for encoding selector
+    QLabel* languageLabel = nullptr;   ///< Label for language selector
+
+    // UI Controls - Menu
+    QMenu* fileMenu = nullptr;  ///< File menu for retranslation
 
     // UI Controls - GitHub link
     QLabel* githubLinkLabel; ///< Clickable GitHub link in status bar
