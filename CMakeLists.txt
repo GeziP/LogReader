@@ -79,6 +79,11 @@ else()
     target_link_libraries(LogReader Qt5::Core Qt5::Gui Qt5::Widgets)
 endif()
 
+# MSVC: treat source files as UTF-8
+if(MSVC)
+    target_compile_options(LogReader PRIVATE /utf-8)
+endif()
+
 # Release构建：禁用调试输出并启用更激进的优化定义
 # 为所有编译器在Release模式下禁用调试输出
 target_compile_definitions(LogReader PRIVATE 
