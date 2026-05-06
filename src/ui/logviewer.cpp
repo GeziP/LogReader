@@ -168,7 +168,7 @@ void LogViewer::setupUI()
     }
     )";
 
-    qApp->setStyleSheet(qss);
+    this->setStyleSheet(qss);
 
     QWidget* centralWidget = new QWidget(this);
     setCentralWidget(centralWidget);
@@ -539,61 +539,6 @@ void LogViewer::loadLogFile(const QString& filePath)
     thread->start();
 }
 
-QList<LogEntry> LogViewer::parseLogFile(const QString& filePath,
-                                        const QString& encoding)
-{
-    QList<LogEntry> logEntries;
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, tr("错误"), tr("无法打开日志文件。"));
-        return logEntries;
-    }
-
-    QTextStream in(&file);
-    // 统一处理编码（Qt5/Qt6）
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-    QTextCodec* codec = QTextCodec::codecForName(encoding.toUtf8());
-    if (!codec) {
-        QMessageBox::warning(this, tr("错误"),
-                             tr("不支持的编码格式：%1").arg(encoding));
-        return logEntries;
-    }
-    in.setCodec(codec);
-#else
-    auto enc = QStringConverter::encodingForName(encoding.toUtf8());
-    if (enc.has_value()) {
-        in.setEncoding(*enc);
-    } else {
-        QMessageBox::warning(this, tr("错误"),
-                             tr("不支持的编码格式：%1，已回退为UTF-8").arg(encoding));
-        in.setEncoding(QStringConverter::Utf8);
-    }
-#endif
-
-    // More tolerant spacing: allow variable spaces around tokens and colon
-    QRegularExpression regex(R"((?:\[\s*(.*?)\s*\])\s*(?:\[\s*(.*?)\s*\])\s*(?:\[\s*(.*?)\s*\])\s*:\s*(.*)$)");
-    regex.optimize();
-    while (!in.atEnd()) {
-        QString line = in.readLine();
-        QRegularExpressionMatch match = regex.match(line);
-        if (match.hasMatch()) {
-            LogEntry entry;
-            entry.timestamp = QDateTime::fromString(match.captured(1),
-                                                    "yyyy-MM-dd HH:mm:ss.zzz");
-            if (!entry.timestamp.isValid()) {
-                // Try other format
-                entry.timestamp = QDateTime::fromString(match.captured(1),
-                                                        "yyyy-MM-dd HH:mm:ss");
-            }
-            entry.level = match.captured(2).trimmed();
-            entry.module = match.captured(3).trimmed();
-            entry.message = match.captured(4);
-            logEntries.append(entry);
-        }
-    }
-    return logEntries;
-}
-
 void LogViewer::onFilterButtonClicked()
 {
     // Clear search state before filter changes to avoid stale proxy row indices
@@ -637,38 +582,6 @@ void LogViewer::onFilterButtonClicked()
 
     statusBar()->showMessage(
         tr("筛选完成，日志条目数：%1").arg(proxyModel ? proxyModel->rowCount() : 0));
-}
-
-QList<LogEntry> LogViewer::filterLogs(const QList<LogEntry>& logs,
-                                      const QDateTime& startTime,
-                                      const QDateTime& endTime,
-                                      const QStringList& levels,
-                                      const QStringList& modules)
-{
-    QList<LogEntry> filteredLogs;
-    for (const auto& entry : logs) {
-        if (!entry.timestamp.isValid())
-            continue;
-        if (entry.timestamp >= startTime && entry.timestamp <= endTime &&
-            levels.contains(entry.level) && modules.contains(entry.module)) {
-            filteredLogs.append(entry);
-        }
-    }
-    return filteredLogs;
-}
-
-void LogViewer::displayLogs(const QList<LogEntry>& logs)
-{
-    Q_UNUSED(logs)
-    // Model already set in setup; just configure header behavior
-    logTreeView->header()->setStretchLastSection(false);
-    for (int i = 0; i < LogTableModel::ColumnCount; ++i) {
-        logTreeView->header()->setSectionResizeMode(i, QHeaderView::Interactive);
-    }
-    // Avoid full resizeColumnToContents on large data; set sensible defaults
-    logTreeView->header()->setMinimumSectionSize(50);
-    logTreeView->header()->setSectionResizeMode(0, QHeaderView::Fixed);
-    logTreeView->header()->resizeSection(0, 80);
 }
 
 void LogViewer::toggleFilterArea()
@@ -751,24 +664,6 @@ void LogViewer::expandToItem(QStandardItem* item)
         logTreeView->expand(parentIndex);
         parentIndex = parentIndex.parent();
     }
-}
-
-void LogViewer::searchInItem(QStandardItem* item)
-{
-    Q_UNUSED(item)
-}
-
-void LogViewer::clearHighlightsInItem(QStandardItem* item)
-{
-    Q_UNUSED(item)
-}
-
-void LogViewer::clearSearchHighlights()
-{
-    if (!proxyModel)
-        return;
-
-    // With delegate highlighter, clearing becomes no-op
 }
 
 void LogViewer::onSearchPrevious()

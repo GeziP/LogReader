@@ -248,66 +248,6 @@ private:
     void retranslateUI();
 
     /**
-     * @brief Display log entries in tree view
-     * @param logs List of LogEntry objects to display
-     * @details Populates the tree view model with log data, organizing entries
-     *          hierarchically and applying appropriate formatting and icons.
-     */
-    void displayLogs(const QList<LogEntry>& logs);
-
-    /**
-     * @brief Parse log file and extract log entries
-     * @param filePath Path to the log file
-     * @param encoding Character encoding to use for reading
-     * @return List of parsed LogEntry objects
-     * @details Reads the file line by line, extracts log entry information
-     *          (timestamp, level, module, content) using regular expressions.
-     */
-    QList<LogEntry> parseLogFile(const QString& filePath,
-                                 const QString& encoding);
-
-    /**
-     * @brief Filter log entries based on criteria
-     * @param logs Original list of log entries
-     * @param startTime Start of time range filter
-     * @param endTime End of time range filter
-     * @param levels List of log levels to include
-     * @param modules List of modules to include
-     * @return Filtered list of log entries
-     * @details Applies multiple filter criteria to reduce the log dataset
-     *          to entries matching user specifications.
-     */
-    QList<LogEntry> filterLogs(const QList<LogEntry>& logs,
-                               const QDateTime& startTime,
-                               const QDateTime& endTime,
-                               const QStringList& levels,
-                               const QStringList& modules);
-
-    // Search functionality methods
-    /**
-     * @brief Search for text within a tree item and its children
-     * @param item Tree item to search in
-     * @details Recursively searches through tree items for the current search
-     * term, highlighting matches and building a list of search results.
-     */
-    void searchInItem(QStandardItem* item);
-
-    /**
-     * @brief Clear all search highlighting
-     * @details Removes search highlighting from all tree items,
-     *          resetting them to normal display state.
-     */
-    void clearSearchHighlights();
-
-    /**
-     * @brief Clear search highlighting from an item and its children
-     * @param item Tree item to clear highlighting from
-     * @details Recursively removes highlighting from the specified item
-     *          and all its child items.
-     */
-    void clearHighlightsInItem(QStandardItem* item);
-
-    /**
      * @brief Apply search highlighting to matching items
      * @details Highlights all tree items that contain the current search term,
      *          making them visually distinct for easy identification.

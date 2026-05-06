@@ -19,7 +19,7 @@ void LogLoader::process()
 {
     QFile file(m_filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        emit error(QObject::tr("无法打开日志文件。"));
+        emit error(QObject::tr("无法打开日志文件：%1").arg(m_filePath));
         emit finished();
         return;
     }

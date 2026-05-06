@@ -74,6 +74,11 @@ struct LogEntry
      *          content that users search through and analyze.
      */
     QString message;
+
+    bool operator==(const LogEntry& other) const {
+        return timestamp == other.timestamp && level == other.level
+            && module == other.module && message == other.message;
+    }
 };
 
 // Declare metatype for queued signal/slot usage across threads

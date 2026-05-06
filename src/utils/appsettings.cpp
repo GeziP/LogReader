@@ -32,13 +32,10 @@ AppSettings& AppSettings::instance()
 
 AppSettings::AppSettings()
 {
-    settings = new QSettings("LogViewer", "LogViewer");
+    settings = std::make_unique<QSettings>("LogViewer", "LogViewer");
 }
 
-AppSettings::~AppSettings()
-{
-    delete settings;
-}
+AppSettings::~AppSettings() = default;
 
 void AppSettings::setRecentLogDir(const QString& path)
 {

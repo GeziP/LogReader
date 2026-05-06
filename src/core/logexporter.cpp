@@ -449,21 +449,6 @@ QString LogExporter::escapeForCsv(const QString& field)
 }
 
 /**
- * @brief Escape special characters for JSON format
- * @param field Text field to escape
- * @return Properly escaped text safe for JSON
- * @details Handles JSON escaping according to JSON standards:
- *          - Escapes quotes, backslashes, and control characters
- *          - Note: Qt's JSON classes handle this automatically
- */
-QString LogExporter::escapeForJson(const QString& field)
-{
-    // Qt's JSON classes handle escaping automatically
-    // This method is provided for completeness and future use
-    return field;
-}
-
-/**
  * @brief Emit progress signal with calculated percentage
  * @param current Current item being processed (1-based)
  * @param total Total number of items to process
