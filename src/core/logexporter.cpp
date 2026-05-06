@@ -325,7 +325,8 @@ bool LogExporter::exportToJson(const QList<LogEntry>& logs,
     for (int i = 0; i < logs.size(); ++i) {
         const LogEntry& entry = logs[i];
 
-        if (i > 0) out << ",\n";
+        if (i > 0)
+            out << ",\n";
         out << "  {\n";
 
         // Wrap in QJsonArray to get proper JSON string escaping
@@ -338,7 +339,8 @@ bool LogExporter::exportToJson(const QList<LogEntry>& logs,
 
         bool first = true;
         auto writeField = [&](const QString& key, const QString& value) {
-            if (!first) out << ",\n";
+            if (!first)
+                out << ",\n";
             first = false;
             out << "    " << jsonEscape(key) << ": " << jsonEscape(value);
         };

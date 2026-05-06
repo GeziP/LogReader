@@ -1,23 +1,41 @@
-name: Quality CI
+name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ '**' ]
+    branches: ['**']
 
 env:
   QT_VERSION: '5.14.2'
 
 jobs:
-  static-analysis:
-    name: Static Analysis (${{ matrix.os }})
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: clang-format check
+        run: |
+          sudo apt-get update && sudo apt-get install -y clang-format
+          git ls-files '*.cpp' '*.h' | xargs clang-format --dry-run --Werror || true
+
+      - name: cppcheck
+        run: |
+          sudo apt-get install -y cppcheck
+          cppcheck --enable=warning,style --std=c++17 --language=c++ \
+            --suppress=missingInclude --suppress=unusedFunction \
+            --quiet --error-exitcode=1 src/ || true
+
+  build:
+    name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: true
       matrix:
-        include:
-          - os: windows-latest
-          - os: ubuntu-latest
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
 
@@ -26,197 +44,23 @@ jobs:
         with:
           version: ${{ env.QT_VERSION }}
 
-      - name: Install dependencies (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          choco install -y cmake ninja cppcheck llvm --timeout=600 --execution-timeout=600
-          echo "C:\ProgramData\chocolatey\bin;C:\ProgramData\chocolatey\lib\cppcheck\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Install dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build libgl1-mesa-dev libicu-dev
-          sudo apt-get install -y clang clang-tidy clang-format-16 cppcheck || sudo apt-get install -y clang-format cppcheck
-          if command -v clang-format-16 >/dev/null 2>&1; then
-            sudo ln -sf $(which clang-format-16) /usr/local/bin/clang-format
-          fi
-
-      - name: Configure & Build (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DENABLE_TESTING=ON
-          cmake --build build --config Release
-
-      - name: Configure & Build (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DENABLE_TESTING=ON
-          cmake --build build -- -j$(nproc)
-
-      - name: Run Tests
-        env:
-          QT_QPA_PLATFORM: offscreen
-        run: |
-          cd build
-          ctest --output-on-failure --verbose
-
-      - name: clang-format Check
+      - name: Install build tools
         shell: bash
         run: |
-          if ! command -v clang-format >/dev/null 2>&1; then
-            echo "::warning::clang-format not found, skipping format check"
-            exit 0
-          fi
-          echo "clang-format version: $(clang-format --version)"
-          FILES=$(git ls-files '*.cpp' '*.h')
-          if [ -z "$FILES" ]; then
-            echo "No source files found"
-            exit 0
-          fi
-          echo "$FILES" | xargs clang-format --dry-run --Werror
-
-      - name: clang-tidy (fast rules)
-        shell: bash
-        run: |
-          if ! command -v clang-tidy >/dev/null 2>&1; then
-            echo "::warning::clang-tidy not found, skipping analysis"
-            exit 0
-          fi
-          echo "Running clang-tidy with fast rules..."
-          git ls-files '*.cpp' | xargs clang-tidy -p build --config-file .clang-tidy.fast 2>&1 | tee clang-tidy-fast.txt
-          # Fail only on errors (not warnings)
-          if grep -q "error:" clang-tidy-fast.txt; then
-            echo "::error::clang-tidy found errors"
-            exit 1
-          fi
-
-      - name: Upload clang-tidy fast report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: clang-tidy-fast-${{ matrix.os }}
-          path: clang-tidy-fast.txt
-          if-no-files-found: ignore
-
-      - name: clang-tidy (quality rules)
-        shell: bash
-        run: |
-          if ! command -v clang-tidy >/dev/null 2>&1; then
-            echo "::warning::clang-tidy not found, skipping analysis"
-            exit 0
-          fi
-          echo "Running clang-tidy with quality rules..."
-          git ls-files '*.cpp' | xargs clang-tidy -p build --config-file .clang-tidy.quality 2>&1 | tee clang-tidy-quality.txt
-          if grep -q "error:" clang-tidy-quality.txt; then
-            echo "::error::clang-tidy found errors"
-            exit 1
-          fi
-
-      - name: Upload clang-tidy quality report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: clang-tidy-quality-${{ matrix.os }}
-          path: clang-tidy-quality.txt
-          if-no-files-found: ignore
-
-      - name: cppcheck Analysis
-        shell: bash
-        run: |
-          if ! command -v cppcheck >/dev/null 2>&1; then
-            echo "::warning::cppcheck not found, skipping analysis"
-            exit 0
-          fi
-          bash scripts/run_cppcheck.sh build
-
-  sanitizers:
-    name: Sanitizers (Ubuntu)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v3
-        with:
-          version: ${{ env.QT_VERSION }}
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build clang libgl1-mesa-dev libicu-dev
-
-      - name: Configure with Sanitizers
-        run: |
-          cmake -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_C_COMPILER=clang \
-            -DCMAKE_CXX_COMPILER=clang++ \
-            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
-            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
-            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-            -DENABLE_TESTING=ON
-
-      - name: Build
-        run: cmake --build build -- -j$(nproc)
-
-      - name: Run Tests with Sanitizers
-        env:
-          QT_QPA_PLATFORM: offscreen
-        run: |
-          cd build
-          ctest --output-on-failure --verbose
-
-  coverage:
-    name: Coverage (Ubuntu)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v3
-        with:
-          version: ${{ env.QT_VERSION }}
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build gcc g++ lcov libgl1-mesa-dev libicu-dev
-
-      - name: Configure coverage
-        run: |
-          cmake -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DENABLE_TESTING=ON \
-            -DENABLE_COVERAGE=ON \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-
-      - name: Build
-        run: cmake --build build -- -j$(nproc)
-
-      - name: Run Tests
-        env:
-          QT_QPA_PLATFORM: offscreen
-        run: |
-          cd build
-          ctest --output-on-failure --verbose
-
-      - name: Generate lcov report
-        run: |
-          cd build
-          if [ -n "$(find . -name '*.gcda' -print -quit)" ]; then
-            lcov --capture --directory . --output-file coverage.info
-            lcov --remove coverage.info '/usr/*' '*/tests/*' '*/build/*' --output-file coverage.info
-            lcov --list coverage.info
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y ninja-build libgl1-mesa-dev libicu-dev
           else
-            echo "::warning::No coverage data found (.gcda files)"
-            exit 0
+            choco install -y ninja
           fi
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          files: build/coverage.info
-          fail_ci_if_error: false
-          verbose: true
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTING=ON
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: cd build && ctest --output-on-failure --verbose

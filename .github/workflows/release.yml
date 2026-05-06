@@ -1,257 +1,166 @@
-name: Release Build
+name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
   contents: write
-  actions: read
 
 env:
   QT_VERSION: '5.14.2'
 
 jobs:
   build-windows:
-    name: Build Windows
+    name: Windows
     runs-on: windows-latest
-
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Qt
-      uses: jurplel/install-qt-action@v3
-      with:
-        version: ${{ env.QT_VERSION }}
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: ${{ env.QT_VERSION }}
 
-    - name: Install dependencies
-      run: |
-        choco install -y cmake ninja --timeout=600 --execution-timeout=600
+      - name: Install Ninja
+        run: choco install -y ninja
 
-    - name: Build
-      run: |
-        cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_DEPLOY=ON
-        cmake --build build --config Release
+      - name: Build
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_DEPLOY=ON
+          cmake --build build
 
-    - name: Package Windows
-      run: |
-        $VERSION = "${{ github.ref_name }}"
-        if ($VERSION -like "v*") { $VERSION = $VERSION.Substring(1) }
+      - name: Package
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          PKG="LogReader-${VERSION}-Windows-x64"
+          mkdir -p "$PKG"
 
-        $PACKAGE = "LogReader-$VERSION-Windows-x64"
-        New-Item -ItemType Directory $PACKAGE -Force
+          # windeployqt ran via ENABLE_DEPLOY, collect outputs
+          cp build/LogReader.exe "$PKG/"
+          cp build/*.dll "$PKG/" 2>/dev/null || true
+          for d in platforms styles imageformats translations; do
+            [ -d "build/$d" ] && cp -r "build/$d" "$PKG/$d"
+          done
+          cp README.md "$PKG/" 2>/dev/null || true
 
-        # Copy executable and Qt runtime (windeployqt already ran via ENABLE_DEPLOY)
-        Copy-Item "build\LogReader.exe" "$PACKAGE\"
-        if (Test-Path "build\translations") {
-          Copy-Item "build\translations" "$PACKAGE\translations" -Recurse -Force
-        }
+          7z a "${PKG}.zip" "$PKG"
 
-        # Copy Qt DLLs deployed by windeployqt
-        Get-ChildItem "build\*.dll" | Copy-Item -Destination "$PACKAGE\" -Force
-        if (Test-Path "build\platforms") {
-          Copy-Item "build\platforms" "$PACKAGE\platforms" -Recurse -Force
-        }
-        if (Test-Path "build\styles") {
-          Copy-Item "build\styles" "$PACKAGE\styles" -Recurse -Force
-        }
-        if (Test-Path "build\imageformats") {
-          Copy-Item "build\imageformats" "$PACKAGE\imageformats" -Recurse -Force
-        }
-
-        Copy-Item "README.md" "$PACKAGE\" -ErrorAction SilentlyContinue
-        Compress-Archive $PACKAGE "$PACKAGE.zip"
-        Write-Host "Created: $PACKAGE.zip"
-
-    - name: Upload Windows Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: windows-build
-        path: "LogReader-*.zip"
-        retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: LogReader-*.zip
 
   build-linux:
-    name: Build Linux
+    name: Linux
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Qt
-      uses: jurplel/install-qt-action@v3
-      with:
-        version: ${{ env.QT_VERSION }}
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: ${{ env.QT_VERSION }}
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential cmake ninja-build libgl1-mesa-dev libicu-dev
+      - name: Install deps
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libgl1-mesa-dev libicu-dev
 
-    - name: Build
-      run: |
-        cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_DEPLOY=ON
-        cmake --build build -- -j$(nproc)
+      - name: Build
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_DEPLOY=ON
+          cmake --build build
 
-    - name: Package Linux
-      run: |
-        VERSION="${{ github.ref_name }}"
-        if [[ $VERSION == v* ]]; then VERSION=${VERSION#v}; fi
+      - name: Package
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          PKG="LogReader-${VERSION}-Linux-x64"
+          mkdir -p "$PKG"
+          cp build/LogReader "$PKG/"
+          cp -r build/translations "$PKG/" 2>/dev/null || true
+          cp README.md "$PKG/" 2>/dev/null || true
+          printf '#!/bin/bash\ndir="$(cd "$(dirname "$0")" && pwd)"\nexport QT_QPA_PLATFORM_PLUGIN_PATH="$dir"\n./LogReader "$@"\n' > "$PKG/run.sh"
+          chmod +x "$PKG/run.sh"
+          tar czf "${PKG}.tar.gz" "$PKG"
 
-        PACKAGE="LogReader-$VERSION-Linux-x64"
-        mkdir -p "$PACKAGE"
-
-        cp build/LogReader "$PACKAGE/"
-        cp -r build/translations "$PACKAGE/" 2>/dev/null || true
-        cp README.md "$PACKAGE/"
-
-        echo '#!/bin/bash' > "$PACKAGE/run.sh"
-        echo 'DIR="$(cd "$(dirname "$0")" && pwd)"' >> "$PACKAGE/run.sh"
-        echo 'export QT_QPA_PLATFORM_PLUGIN_PATH="$DIR"' >> "$PACKAGE/run.sh"
-        echo './LogReader "$@"' >> "$PACKAGE/run.sh"
-        chmod +x "$PACKAGE/run.sh"
-
-        tar -czf "$PACKAGE.tar.gz" "$PACKAGE"
-        echo "Created: $PACKAGE.tar.gz"
-
-    - name: Upload Linux Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-build
-        path: "LogReader-*.tar.gz"
-        retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: LogReader-*.tar.gz
 
   build-macos:
-    name: Build macOS
+    name: macOS
     runs-on: macos-13
-
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Qt
-      uses: jurplel/install-qt-action@v3
-      with:
-        version: ${{ env.QT_VERSION }}
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: ${{ env.QT_VERSION }}
 
-    - name: Install dependencies
-      run: |
-        brew install ninja || true
+      - name: Build
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_DEPLOY=ON
+          cmake --build build
 
-    - name: Build
-      run: |
-        cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_DEPLOY=ON -DCMAKE_OSX_ARCHITECTURES="x86_64"
-        cmake --build build -- -j$(sysctl -n hw.ncpu)
-
-    - name: Deploy Qt and Create App Bundle
-      run: |
-        cd build
-        if [ ! -d "LogReader.app" ]; then
+      - name: Create app bundle
+        run: |
+          cd build
           mkdir -p LogReader.app/Contents/{MacOS,Resources}
-          cat > LogReader.app/Contents/Info.plist << 'PLIST'
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
+          cp LogReader LogReader.app/Contents/MacOS/
+          chmod +x LogReader.app/Contents/MacOS/LogReader
+          cat > LogReader.app/Contents/Info.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
             <key>CFBundleExecutable</key><string>LogReader</string>
             <key>CFBundleIdentifier</key><string>com.gezip.LogReader</string>
             <key>CFBundleName</key><string>LogReader</string>
-            <key>CFBundleVersion</key><string>1.0</string>
-            <key>CFBundleShortVersionString</key><string>1.0</string>
             <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleVersion</key><string>1.0</string>
             <key>NSHighResolutionCapable</key><true/>
-        </dict>
-        </plist>
-        PLIST
-          cp LogReader LogReader.app/Contents/MacOS/
-          chmod +x LogReader.app/Contents/MacOS/LogReader
-        fi
-        macdeployqt LogReader.app
-        cp -r ../translations/*.qm LogReader.app/Contents/Resources/ 2>/dev/null || true
+          </dict></plist>
+          EOF
+          macdeployqt LogReader.app
+          cp ../translations/*.qm LogReader.app/Contents/Resources/ 2>/dev/null || true
 
-    - name: Package macOS
-      run: |
-        VERSION="${{ github.ref_name }}"
-        if [[ $VERSION == v* ]]; then VERSION=${VERSION#v}; fi
+      - name: Package
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          PKG="LogReader-${VERSION}-macOS-x64"
+          mkdir -p "$PKG"
+          cp -R build/LogReader.app "$PKG/"
+          cp README.md "$PKG/" 2>/dev/null || true
+          hdiutil create -srcfolder "$PKG" -volname "LogReader $VERSION" "${PKG}.dmg"
 
-        PACKAGE="LogReader-$VERSION-macOS-universal"
-        mkdir -p "$PACKAGE"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: LogReader-*.dmg
 
-        cp -R build/LogReader.app "$PACKAGE/"
-        cp README.md "$PACKAGE/"
-
-        hdiutil create -srcfolder "$PACKAGE" -volname "LogReader $VERSION" "$PACKAGE.dmg"
-        echo "Created: $PACKAGE.dmg"
-
-    - name: Upload macOS Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: macos-build
-        path: "LogReader-*.dmg"
-        retention-days: 7
-
-  create-release:
-    name: Create Release
+  release:
+    name: Publish Release
     runs-on: ubuntu-latest
     needs: [build-windows, build-linux, build-macos]
-    if: always() && (needs.build-windows.result == 'success' || needs.build-linux.result == 'success' || needs.build-macos.result == 'success')
-
+    if: always() && !cancelled()
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
-    - name: Prepare release assets
-      run: |
-        mkdir -p release-assets
-        find artifacts -name "*.zip" -o -name "*.tar.gz" -o -name "*.dmg" | while read file; do
-          echo "Found asset: $file"
-          cp "$file" release-assets/
-        done
-        ls -la release-assets/
+      - name: Collect assets
+        run: |
+          mkdir assets
+          find artifacts -name "*.zip" -o -name "*.tar.gz" -o -name "*.dmg" | xargs -I{} cp {} assets/
+          ls -la assets/
 
-    - name: Generate release notes
-      run: |
-        VERSION="${{ github.ref_name }}"
-        if [[ $VERSION == v* ]]; then VERSION=${VERSION#v}; fi
-
-        cat > release-notes.md << EOF
-        # LogReader $VERSION
-
-        ## Platforms
-
-        $(if find artifacts/windows-build -name "*.zip" 2>/dev/null | grep -q .; then echo "- Windows (ZIP)"; else echo "- Windows: build failed"; fi)
-        $(if find artifacts/linux-build -name "*.tar.gz" 2>/dev/null | grep -q .; then echo "- Linux (tar.gz)"; else echo "- Linux: build failed"; fi)
-        $(if find artifacts/macos-build -name "*.dmg" 2>/dev/null | grep -q .; then echo "- macOS (DMG)"; else echo "- macOS: build failed"; fi)
-
-        ## Usage
-
-        1. **Windows**: Extract ZIP, run LogReader.exe
-        2. **Linux**: Extract tar.gz, run ./run.sh
-        3. **macOS**: Open DMG, drag LogReader.app to Applications
-
-        ## Feedback
-
-        Please report issues on GitHub Issues.
-        EOF
-
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: ${{ github.ref_name }}
-        name: LogReader ${{ github.ref_name }}
-        body_path: release-notes.md
-        files: release-assets/*
-        draft: false
-        prerelease: false
-        fail_on_unmatched_files: false
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: assets/*
+          generate_release_notes: true
+          fail_on_unmatched_files: false

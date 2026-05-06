@@ -19,7 +19,6 @@
 #include <QDateTimeEdit>
 #include <QFile>
 #include <QFileDialog>
-#include <QTimer>
 #include <QFileInfo>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -33,16 +32,18 @@
 #include <QSet>
 #include <QStandardItemModel>
 #include <QTextStream>
+#include <QThread>
+#include <QTimer>
 #include <QToolBar>
 #include <QTreeView>
 #include <QVBoxLayout>
 
 #include "exportdialog.h"
+#include "highlightdelegate.h"
 #include "logfilterproxymodel.h"
 #include "logtablemodel.h"
-#include "highlightdelegate.h"
+
 #include "../core/logloader.h"
-#include <QThread>
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QTextCodec>
 #else
@@ -50,12 +51,10 @@
 #endif
 #include <QBrush>
 #include <QDebug>
-#include <utility>
 #include <QDesktopServices>
 #include <QEvent>
 #include <QFont>
 #include <QFontMetrics>
-#include <QSysInfo>
 #include <QLineEdit>
 #include <QModelIndex>
 #include <QMouseEvent>
@@ -65,7 +64,9 @@
 #include <QStatusBar>
 #include <QStyleFactory>
 #include <QStyledItemDelegate>
+#include <QSysInfo>
 #include <QUrl>
+#include <utility>
 
 /**
  * @brief Constructor for LogViewer main window
@@ -76,7 +77,12 @@
  * functionality.
  */
 LogViewer::LogViewer(QWidget* parent)
-    : QMainWindow(parent), sourceModel(nullptr), proxyModel(nullptr), highlightDelegate(nullptr), currentSearchIndex(-1), searchDebounceTimer(nullptr)
+    : QMainWindow(parent),
+      sourceModel(nullptr),
+      proxyModel(nullptr),
+      highlightDelegate(nullptr),
+      currentSearchIndex(-1),
+      searchDebounceTimer(nullptr)
 {
     setupUI();
 
@@ -431,11 +437,11 @@ void LogViewer::setupUI()
                             .arg(QString::fromLatin1(QT_VERSION_STR))
                             .arg(QString::fromLatin1(
 #ifdef NDEBUG
-                                 "Release"
+                                "Release"
 #else
-                                 "Debug"
+                                "Debug"
 #endif
-                                 ));
+                                ));
     statusBar()->showMessage(tr("就绪 · %1").arg(buildInfo));
 
     // Initialize models
@@ -445,7 +451,8 @@ void LogViewer::setupUI()
     logTreeView->setModel(proxyModel);
     // Delegate for highlight on content column
     highlightDelegate = new HighlightDelegate(this);
-    logTreeView->setItemDelegateForColumn(LogTableModel::ColumnMessage, highlightDelegate);
+    logTreeView->setItemDelegateForColumn(LogTableModel::ColumnMessage,
+                                          highlightDelegate);
 }
 
 void LogViewer::openLogFile()
@@ -493,48 +500,58 @@ void LogViewer::loadLogFile(const QString& filePath)
     logTreeView->viewport()->setUpdatesEnabled(false);
 #endif
 
-    connect(loader, &LogLoader::chunkReady, this, [this](QVector<LogEntry> chunk) {
-        sourceModel->appendRows(std::move(chunk));
-    });
-    connect(loader, &LogLoader::summaryReady, this, [this](const QDateTime& minTime, const QDateTime& maxTime, const QStringList& modules, const QStringList& levels) {
-        startTimeEdit->setDateTime(minTime);
-        endTimeEdit->setDateTime(maxTime);
-        allModules = modules;
-        allLevels = levels;
-        // Rebuild module checkboxes UI
-        QLayoutItem* child;
-        while ((child = moduleLayout->takeAt(0)) != nullptr) {
-            QWidget* widget = child->widget();
-            if (widget) widget->deleteLater();
-            delete child;
-        }
-        moduleCheckBoxes.clear();
-        for (const QString& module : allModules) {
-            QCheckBox* checkBox = new QCheckBox(module, this);
-            checkBox->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-            moduleCheckBoxes.append(checkBox);
-            moduleLayout->addWidget(checkBox);
-        }
-        moduleLayout->addStretch();
-        for (QCheckBox* checkBox : levelCheckBoxes) checkBox->setChecked(true);
-        for (QCheckBox* checkBox : moduleCheckBoxes) checkBox->setChecked(true);
-    });
-    connect(loader, &LogLoader::finished, this, [this, loader, thread, filePath]() {
-        // 发布构建下，加载结束后恢复视图更新并进行一次性刷新
+    connect(loader, &LogLoader::chunkReady, this,
+            [this](QVector<LogEntry> chunk) {
+                sourceModel->appendRows(std::move(chunk));
+            });
+    connect(loader, &LogLoader::summaryReady, this,
+            [this](const QDateTime& minTime, const QDateTime& maxTime,
+                   const QStringList& modules, const QStringList& levels) {
+                startTimeEdit->setDateTime(minTime);
+                endTimeEdit->setDateTime(maxTime);
+                allModules = modules;
+                allLevels = levels;
+                // Rebuild module checkboxes UI
+                QLayoutItem* child;
+                while ((child = moduleLayout->takeAt(0)) != nullptr) {
+                    QWidget* widget = child->widget();
+                    if (widget)
+                        widget->deleteLater();
+                    delete child;
+                }
+                moduleCheckBoxes.clear();
+                for (const QString& module : allModules) {
+                    QCheckBox* checkBox = new QCheckBox(module, this);
+                    checkBox->setSizePolicy(QSizePolicy::Preferred,
+                                            QSizePolicy::Preferred);
+                    moduleCheckBoxes.append(checkBox);
+                    moduleLayout->addWidget(checkBox);
+                }
+                moduleLayout->addStretch();
+                for (QCheckBox* checkBox : levelCheckBoxes)
+                    checkBox->setChecked(true);
+                for (QCheckBox* checkBox : moduleCheckBoxes)
+                    checkBox->setChecked(true);
+            });
+    connect(loader, &LogLoader::finished, this,
+            [this, loader, thread, filePath]() {
+    // 发布构建下，加载结束后恢复视图更新并进行一次性刷新
 #ifdef NDEBUG
-        logTreeView->setUpdatesEnabled(true);
-        logTreeView->viewport()->setUpdatesEnabled(true);
-        logTreeView->viewport()->update();
+                logTreeView->setUpdatesEnabled(true);
+                logTreeView->viewport()->setUpdatesEnabled(true);
+                logTreeView->viewport()->update();
 #endif
 
-        progressBar->setVisible(false);
-        exportAction->setEnabled(true);
-        statusBar()->showMessage(tr("已加载文件：%1，日志条目数：%2").arg(filePath).arg(sourceModel->rowCount()));
-        loader->deleteLater();
-        thread->quit();
-        thread->wait();
-        thread->deleteLater();
-    });
+                progressBar->setVisible(false);
+                exportAction->setEnabled(true);
+                statusBar()->showMessage(tr("已加载文件：%1，日志条目数：%2")
+                                             .arg(filePath)
+                                             .arg(sourceModel->rowCount()));
+                loader->deleteLater();
+                thread->quit();
+                thread->wait();
+                thread->deleteLater();
+            });
 
     thread->start();
 }
@@ -580,8 +597,8 @@ void LogViewer::onFilterButtonClicked()
     // Hide progress bar after filtering is complete
     progressBar->setVisible(false);
 
-    statusBar()->showMessage(
-        tr("筛选完成，日志条目数：%1").arg(proxyModel ? proxyModel->rowCount() : 0));
+    statusBar()->showMessage(tr("筛选完成，日志条目数：%1")
+                                 .arg(proxyModel ? proxyModel->rowCount() : 0));
 }
 
 void LogViewer::toggleFilterArea()
@@ -643,7 +660,8 @@ void LogViewer::highlightSearchMatches()
     // Linear scan on content column for matches (proxy model)
     int rows = proxyModel->rowCount();
     for (int r = 0; r < rows; ++r) {
-        QModelIndex contentIdx = proxyModel->index(r, LogTableModel::ColumnMessage);
+        QModelIndex contentIdx =
+            proxyModel->index(r, LogTableModel::ColumnMessage);
         QString text = proxyModel->data(contentIdx, Qt::DisplayRole).toString();
         if (text.contains(currentSearchText, Qt::CaseInsensitive)) {
             searchResults.append(r);
@@ -715,7 +733,8 @@ void LogViewer::onLogItemDoubleClicked(const QModelIndex& index)
     int cols = proxyModel->columnCount();
     for (int col = 0; col < cols; ++col) {
         QString header = proxyModel->headerData(col, Qt::Horizontal).toString();
-        QString data = proxyModel->data(index.sibling(index.row(), col)).toString();
+        QString data =
+            proxyModel->data(index.sibling(index.row(), col)).toString();
         details += QString("%1: %2\n").arg(header).arg(data);
     }
 
@@ -896,7 +915,8 @@ QList<LogEntry> LogViewer::getSearchMatchedLogs() const
 
     for (int proxyRow : searchResults) {
         if (proxyRow >= 0 && proxyRow < proxyModel->rowCount()) {
-            QModelIndex srcIndex = proxyModel->mapToSource(proxyModel->index(proxyRow, 0));
+            QModelIndex srcIndex =
+                proxyModel->mapToSource(proxyModel->index(proxyRow, 0));
             int srcRow = srcIndex.row();
             if (srcRow >= 0 && srcRow < sourceModel->size()) {
                 matchedLogs.append(sourceModel->at(srcRow));
@@ -1019,10 +1039,14 @@ void LogViewer::retranslateUI()
         searchLineEdit->setPlaceholderText(tr("搜索..."));
 
     // Re-set label text directly via member pointers
-    if (startTimeLabel) startTimeLabel->setText(tr("开始时间:"));
-    if (endTimeLabel) endTimeLabel->setText(tr("结束时间:"));
-    if (encodingLabel) encodingLabel->setText(tr("文件编码:"));
-    if (languageLabel) languageLabel->setText(tr("语言:"));
+    if (startTimeLabel)
+        startTimeLabel->setText(tr("开始时间:"));
+    if (endTimeLabel)
+        endTimeLabel->setText(tr("结束时间:"));
+    if (encodingLabel)
+        encodingLabel->setText(tr("文件编码:"));
+    if (languageLabel)
+        languageLabel->setText(tr("语言:"));
 
     // Re-set table headers (via view header, since we use custom model)
     if (logTreeView && logTreeView->header()) {

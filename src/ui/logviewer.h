@@ -14,12 +14,12 @@
 #ifndef LOGVIEWER_H
 #define LOGVIEWER_H
 
-#include <QObject>
 #include <QDateTime>
 #include <QList>
-#include <QVector>
 #include <QMainWindow>
+#include <QObject>
 #include <QStandardItem>
+#include <QVector>
 
 #include "../core/logentry.h"
 #include "../core/logexporter.h"
@@ -289,11 +289,12 @@ private:
     QComboBox* languageComboBox; ///< Dropdown for language selection
 
     // UI Controls - Main display
-    QTreeView* logTreeView;       ///< Main tree view for displaying logs
+    QTreeView* logTreeView; ///< Main tree view for displaying logs
     // Replaced heavy item model with lightweight table + proxy
-    class LogTableModel* sourceModel; ///< Lightweight source model
+    class LogTableModel* sourceModel;      ///< Lightweight source model
     class LogFilterProxyModel* proxyModel; ///< Filter proxy model
-    class HighlightDelegate* highlightDelegate; ///< Delegate for search highlight
+    class HighlightDelegate*
+        highlightDelegate; ///< Delegate for search highlight
 
     // UI Controls - Layout containers
     QGroupBox* timeGroupBox;   ///< Container for time range controls
@@ -313,32 +314,32 @@ private:
     QPushButton* deselectAllModulesButton; ///< Button to deselect all modules
 
     // UI Controls - Search
-    QLineEdit* searchLineEdit;     ///< Text input for search terms
+    QLineEdit* searchLineEdit; ///< Text input for search terms
     QPushButton*
         searchPreviousButton;      ///< Button to go to previous search result
     QPushButton* searchNextButton; ///< Button to go to next search result
     QPushButton* exportSearchResultsButton; ///< Button to export search results
 
     // UI Controls - Retranslatable labels
-    QLabel* startTimeLabel = nullptr;  ///< Label for start time selector
-    QLabel* endTimeLabel = nullptr;    ///< Label for end time selector
-    QLabel* encodingLabel = nullptr;   ///< Label for encoding selector
-    QLabel* languageLabel = nullptr;   ///< Label for language selector
+    QLabel* startTimeLabel = nullptr; ///< Label for start time selector
+    QLabel* endTimeLabel = nullptr;   ///< Label for end time selector
+    QLabel* encodingLabel = nullptr;  ///< Label for encoding selector
+    QLabel* languageLabel = nullptr;  ///< Label for language selector
 
     // UI Controls - Menu
-    QMenu* fileMenu = nullptr;  ///< File menu for retranslation
+    QMenu* fileMenu = nullptr; ///< File menu for retranslation
 
     // UI Controls - GitHub link
     QLabel* githubLinkLabel; ///< Clickable GitHub link in status bar
 
     // Data storage
-    QStringList allModules;    ///< List of all unique modules found in logs
-    QStringList allLevels;     ///< List of all unique log levels found
-    QString currentFilePath;   ///< Path of currently loaded log file
-    QString currentSearchText; ///< Current search term
-    QVector<int> searchResults; ///< Row indices in proxy model matching search
-    int currentSearchIndex;    ///< Index of currently selected search result
-    QFont logFont;             ///< Font used for displaying log content
+    QStringList allModules;      ///< List of all unique modules found in logs
+    QStringList allLevels;       ///< List of all unique log levels found
+    QString currentFilePath;     ///< Path of currently loaded log file
+    QString currentSearchText;   ///< Current search term
+    QVector<int> searchResults;  ///< Row indices in proxy model matching search
+    int currentSearchIndex;      ///< Index of currently selected search result
+    QFont logFont;               ///< Font used for displaying log content
     QTimer* searchDebounceTimer; ///< Debounce timer for search input
 };
 

@@ -14,8 +14,8 @@
 #define LOGENTRY_H
 
 #include <QDateTime>
-#include <QString>
 #include <QMetaType>
+#include <QString>
 
 /**
  * @struct LogEntry
@@ -75,9 +75,10 @@ struct LogEntry
      */
     QString message;
 
-    bool operator==(const LogEntry& other) const {
-        return timestamp == other.timestamp && level == other.level
-            && module == other.module && message == other.message;
+    bool operator==(const LogEntry& other) const
+    {
+        return timestamp == other.timestamp && level == other.level &&
+               module == other.module && message == other.message;
     }
 };
 
