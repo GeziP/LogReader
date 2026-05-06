@@ -17,319 +17,200 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            job_type: full
           - os: ubuntu-latest
-            job_type: full
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Qt
-        if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest'
         uses: jurplel/install-qt-action@v3
         with:
           version: ${{ env.QT_VERSION }}
 
-      # Windows 不再使用 MinGW 路线，移除此步骤
-      # Windows/Linux依赖安装
       - name: Install dependencies (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          # 增加超时和重试机制
-          choco install -y mingw cmake ninja cppcheck llvm --timeout=600 --execution-timeout=600
-          echo "C:\ProgramData\chocolatey\bin;C:\tools\mingw64\bin;C:\ProgramData\chocolatey\lib\cppcheck\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          choco install -y cmake ninja cppcheck llvm --timeout=600 --execution-timeout=600
+          echo "C:\ProgramData\chocolatey\bin;C:\ProgramData\chocolatey\lib\cppcheck\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
       - name: Install dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake qt6-base-dev qt6-tools-dev qt6-tools-dev-tools libgl1-mesa-dev libicu-dev
-          # clang/clang-tidy/clang-format
-          sudo apt-get install -y clang clang-tidy clang-format-16 || sudo apt-get install -y clang-format
-          # 创建符号链接确保使用正确版本
+          sudo apt-get install -y build-essential cmake ninja-build libgl1-mesa-dev libicu-dev
+          sudo apt-get install -y clang clang-tidy clang-format-16 cppcheck || sudo apt-get install -y clang-format cppcheck
           if command -v clang-format-16 >/dev/null 2>&1; then
             sudo ln -sf $(which clang-format-16) /usr/local/bin/clang-format
           fi
-      # Windows/Linux CMake构建
+
       - name: Configure & Build (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          mkdir build
-          cd build
-          cmake .. -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-          cmake --build . --config Release -- -m:2
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DENABLE_TESTING=ON
+          cmake --build build --config Release
+
       - name: Configure & Build (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          mkdir -p build
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DENABLE_TESTING=ON
+          cmake --build build -- -j$(nproc)
+
+      - name: Run Tests
+        run: |
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-          cmake --build . -- -j$(nproc || echo 2)
+          ctest --output-on-failure --verbose
 
       - name: clang-format Check
         shell: bash
         run: |
-          # 跨平台兼容的clang-format检查 (容错模式 - 版本差异问题)
-          if command -v clang-format >/dev/null 2>&1; then
-            echo "clang-format found, checking format..."
-            echo "clang-format version: $(clang-format --version)"
-            git ls-files '*.cpp' '*.h' | xargs clang-format --dry-run || echo "Format issues detected but not failing CI due to version differences"
-          else
-            echo "Warning: clang-format not found, skipping format check"
+          if ! command -v clang-format >/dev/null 2>&1; then
+            echo "::warning::clang-format not found, skipping format check"
+            exit 0
           fi
+          echo "clang-format version: $(clang-format --version)"
+          FILES=$(git ls-files '*.cpp' '*.h')
+          if [ -z "$FILES" ]; then
+            echo "No source files found"
+            exit 0
+          fi
+          echo "$FILES" | xargs clang-format --dry-run --Werror
 
       - name: clang-tidy (fast rules)
         shell: bash
         run: |
-          if command -v clang-tidy >/dev/null 2>&1; then
-            echo "Running clang-tidy with fast rules..."
-            clang-tidy -p build --config-file .clang-tidy.fast $(git ls-files '*.cpp') > clang-tidy-fast.txt || true
-          else
-            echo "Warning: clang-tidy not found, skipping analysis"
+          if ! command -v clang-tidy >/dev/null 2>&1; then
+            echo "::warning::clang-tidy not found, skipping analysis"
+            exit 0
+          fi
+          echo "Running clang-tidy with fast rules..."
+          git ls-files '*.cpp' | xargs clang-tidy -p build --config-file .clang-tidy.fast 2>&1 | tee clang-tidy-fast.txt
+          # Fail only on errors (not warnings)
+          if grep -q "error:" clang-tidy-fast.txt; then
+            echo "::error::clang-tidy found errors"
+            exit 1
           fi
 
       - name: Upload clang-tidy fast report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: clang-tidy-fast-${{ matrix.os }}
           path: clang-tidy-fast.txt
-          if-no-files-found: warn
+          if-no-files-found: ignore
 
       - name: clang-tidy (quality rules)
         shell: bash
         run: |
-          if command -v clang-tidy >/dev/null 2>&1; then
-            echo "Running clang-tidy with quality rules..."
-            clang-tidy -p build --config-file .clang-tidy.quality $(git ls-files '*.cpp') > clang-tidy-quality.txt || true
-          else
-            echo "Warning: clang-tidy not found, skipping analysis"
+          if ! command -v clang-tidy >/dev/null 2>&1; then
+            echo "::warning::clang-tidy not found, skipping analysis"
+            exit 0
+          fi
+          echo "Running clang-tidy with quality rules..."
+          git ls-files '*.cpp' | xargs clang-tidy -p build --config-file .clang-tidy.quality 2>&1 | tee clang-tidy-quality.txt
+          if grep -q "error:" clang-tidy-quality.txt; then
+            echo "::error::clang-tidy found errors"
+            exit 1
           fi
 
       - name: Upload clang-tidy quality report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: clang-tidy-quality-${{ matrix.os }}
           path: clang-tidy-quality.txt
-          if-no-files-found: warn
+          if-no-files-found: ignore
 
       - name: cppcheck Analysis
         shell: bash
         run: |
-          # 跨平台兼容的cppcheck检查
-          if command -v cppcheck >/dev/null 2>&1; then
-            bash scripts/run_cppcheck.sh build || true
-          else
-            echo "Warning: cppcheck not found, skipping analysis"
+          if ! command -v cppcheck >/dev/null 2>&1; then
+            echo "::warning::cppcheck not found, skipping analysis"
+            exit 0
           fi
+          bash scripts/run_cppcheck.sh build
 
-  # 预留动态分析及覆盖率任务
-  # sanitizers:
-  #   ... 
-
-  # sanitizers job
   sanitizers:
-    name: Sanitizers (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
+    name: Sanitizers (Ubuntu)
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      # Install Qt
+
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
           version: ${{ env.QT_VERSION }}
-          
-      - name: Install dependencies (Windows)
-        if: matrix.os == 'windows-latest'
+
+      - name: Install dependencies
         run: |
-          # 增加超时和重试机制
-          choco install -y mingw cmake ninja cppcheck --timeout=600 --execution-timeout=600
-          echo "C:\ProgramData\chocolatey\bin;C:\tools\mingw64\bin;C:\ProgramData\chocolatey\lib\cppcheck\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-      - name: Install dependencies (Linux)
-        if: runner.os == 'Linux'
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build clang libgl1-mesa-dev libicu-dev
+
+      - name: Configure with Sanitizers
         run: |
-          sudo apt update
-          sudo apt install -y clang clang-tidy lcov
-          
-      - name: Install dependencies (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew update || true
-          brew install llvm lcov || true
-          echo "/opt/homebrew/bin" >> $GITHUB_PATH
-          echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
-          
-      - name: Configure with Sanitizers (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          mkdir -p build
-          cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Debug \
-                   -DCMAKE_C_FLAGS="-fsanitize=address,undefined" \
-                   -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined" \
-                   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-                   -DENABLE_TESTING=ON
-                   
-      - name: Configure with Debug (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          mkdir build
-          cd build
-          cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DENABLE_TESTING=ON
-                   
-      - name: Build & Tests (Linux)
-        if: runner.os == 'Linux'
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DENABLE_TESTING=ON
+
+      - name: Build
+        run: cmake --build build -- -j$(nproc)
+
+      - name: Run Tests with Sanitizers
         run: |
           cd build
-          make -j$(nproc)
-          # 运行测试（如果存在）
-          if [ -f CTestTestfile.cmake ]; then
-            ctest --output-on-failure || true
-          else
-            echo "No tests configured, skipping test execution"
-          fi
-          
-      - name: Build & Tests (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          cd build
-          cmake --build . -- -j2
-          # 运行测试（如果存在）
-          if (Test-Path "CTestTestfile.cmake") {
-            Write-Host "Running tests..."
-            ctest --output-on-failure || Write-Host "Some tests failed but continuing CI"
-          } else {
-            Write-Host "No tests configured, skipping test execution"
-          }
-
-      - name: clang-tidy (fast rules) [sanitizers]
-        shell: bash
-        run: |
-          if command -v clang-tidy >/dev/null 2>&1; then
-            echo "Running clang-tidy (sanitizers) with fast rules..."
-            clang-tidy -p build --config-file .clang-tidy.fast $(git ls-files '*.cpp') > clang-tidy-fast-sanitizers.txt || true
-          else
-            echo "Warning: clang-tidy not found, skipping analysis"
-          fi
-
-      - name: Upload clang-tidy fast report [sanitizers]
-        uses: actions/upload-artifact@v4
-        with:
-          name: clang-tidy-fast-sanitizers-${{ matrix.os }}
-          path: clang-tidy-fast-sanitizers.txt
-          if-no-files-found: warn
-
-      - name: clang-tidy (quality rules) [sanitizers]
-        shell: bash
-        run: |
-          if command -v clang-tidy >/dev/null 2>&1; then
-            echo "Running clang-tidy (sanitizers) with quality rules..."
-            clang-tidy -p build --config-file .clang-tidy.quality $(git ls-files '*.cpp') > clang-tidy-quality-sanitizers.txt || true
-          else
-            echo "Warning: clang-tidy not found, skipping analysis"
-          fi
-
-      - name: Upload clang-tidy quality report [sanitizers]
-        uses: actions/upload-artifact@v4
-        with:
-          name: clang-tidy-quality-sanitizers-${{ matrix.os }}
-          path: clang-tidy-quality-sanitizers.txt
-          if-no-files-found: warn
+          ctest --output-on-failure --verbose
 
   coverage:
     name: Coverage (Ubuntu)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      # Install Qt
+
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
           version: ${{ env.QT_VERSION }}
-          
+
       - name: Install dependencies
         run: |
-          sudo apt update
-          sudo apt install -y lcov gcc g++ clang clang-tidy
-          
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build gcc g++ lcov libgl1-mesa-dev libicu-dev
+
       - name: Configure coverage
         run: |
-          mkdir -p build
-          cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Debug \
-                   -DENABLE_CODE_COVERAGE=ON \
-                   -DENABLE_TESTING=ON \
-                   -DENABLE_COVERAGE=ON \
-                   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-                   -DCMAKE_C_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
-                   -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage"
-                   
-      - name: Build & Tests
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DENABLE_TESTING=ON \
+            -DENABLE_COVERAGE=ON \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Build
+        run: cmake --build build -- -j$(nproc)
+
+      - name: Run Tests
         run: |
           cd build
-          make -j$(nproc)
-          # 运行测试以生成coverage数据
-          if [ -f CTestTestfile.cmake ]; then
-            ctest --output-on-failure || true
-          else
-            echo "No tests configured, creating dummy coverage data"
-            # 运行主程序生成一些coverage数据
-            timeout 5s ./LogReader --help || true
-          fi
+          ctest --output-on-failure --verbose
 
-      - name: clang-tidy (fast rules) [coverage]
-        shell: bash
-        run: |
-          if command -v clang-tidy >/dev/null 2>&1; then
-            echo "Running clang-tidy (coverage) with fast rules..."
-            clang-tidy -p build --config-file .clang-tidy.fast $(git ls-files '*.cpp') > clang-tidy-fast-coverage.txt || true
-          else
-            echo "Warning: clang-tidy not found, skipping analysis"
-          fi
-
-      - name: Upload clang-tidy fast report [coverage]
-        uses: actions/upload-artifact@v4
-        with:
-          name: clang-tidy-fast-coverage-${{ runner.os }}
-          path: clang-tidy-fast-coverage.txt
-          if-no-files-found: warn
-
-      - name: clang-tidy (quality rules) [coverage]
-        shell: bash
-        run: |
-          if command -v clang-tidy >/dev/null 2>&1; then
-            echo "Running clang-tidy (coverage) with quality rules..."
-            clang-tidy -p build --config-file .clang-tidy.quality $(git ls-files '*.cpp') > clang-tidy-quality-coverage.txt || true
-          else
-            echo "Warning: clang-tidy not found, skipping analysis"
-          fi
-
-      - name: Upload clang-tidy quality report [coverage]
-        uses: actions/upload-artifact@v4
-        with:
-          name: clang-tidy-quality-coverage-${{ runner.os }}
-          path: clang-tidy-quality-coverage.txt
-          if-no-files-found: warn
-          
       - name: Generate lcov report
         run: |
           cd build
-          # 确保有coverage数据
           if [ -n "$(find . -name '*.gcda' -print -quit)" ]; then
             lcov --capture --directory . --output-file coverage.info
             lcov --remove coverage.info '/usr/*' '*/tests/*' '*/build/*' --output-file coverage.info
             lcov --list coverage.info
           else
-            echo "No coverage data found (.gcda files), creating empty report"
-            lcov --capture --directory . --output-file coverage.info --ignore-errors empty || true
-            echo "Coverage report created with available data"
+            echo "::warning::No coverage data found (.gcda files)"
+            exit 0
           fi
-          
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
           files: build/coverage.info
           fail_ci_if_error: false
-          verbose: true 
+          verbose: true
