@@ -27,6 +27,9 @@ jobs:
       - name: Install Ninja
         run: choco install -y ninja
 
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Build
         run: |
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_DEPLOY=ON
