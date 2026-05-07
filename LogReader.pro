@@ -20,8 +20,10 @@ SOURCES += \
     src/ui/logfilterproxymodel.cpp \
     src/ui/highlightdelegate.cpp \
     src/ui/exportdialog.cpp \
+    src/ui/formattemplatedialog.cpp \
     src/core/logexporter.cpp \
     src/core/logloader.cpp \
+    src/core/logformattemplate.cpp \
     src/utils/appsettings.cpp \
     src/utils/languagemanager.cpp
 
@@ -32,8 +34,10 @@ HEADERS += \
     src/ui/logfilterproxymodel.h \
     src/ui/highlightdelegate.h \
     src/ui/exportdialog.h \
+    src/ui/formattemplatedialog.h \
     src/core/logexporter.h \
     src/core/logloader.h \
+    src/core/logformattemplate.h \
     src/utils/appsettings.h \
     src/utils/languagemanager.h
 
