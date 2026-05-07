@@ -244,77 +244,7 @@ QString LogFormatTemplate::analyzeLineStructure(const QStringList& lines)
         return QString();
     }
 
-    // Analyze first few log lines to determine structure
     int analyzeCount = qMin(10, logLines.size());
-    QMap<QString, int> fieldPositions; // field name -> position count
-
-    for (int i = 0; i < analyzeCount; ++i) {
-        const QString& line = logLines[i];
-
-        // Find timestamp
-        QRegularExpressionMatch tsMatch;
-        bool tsBracketed = true;
-        tsMatch = TS_BRACKETED.match(line);
-        if (!tsMatch.hasMatch()) {
-            tsMatch = TS_BARE.match(line);
-            tsBracketed = false;
-        }
-
-        if (!tsMatch.hasMatch())
-            continue;
-
-        int tsStart = tsMatch.capturedStart();
-        int tsEnd = tsMatch.capturedEnd();
-
-        // Get content after timestamp
-        QString afterTs = line.mid(tsEnd).trimmed();
-
-        // Check if there's a second bracketed field (level or cycle info)
-        QRegularExpression bracketField(R"(^\s*\[([^\]]+)\])");
-        QRegularExpressionMatch bracketMatch = bracketField.match(afterTs);
-
-        QString level;
-        QString rest;
-
-        if (bracketMatch.hasMatch()) {
-            // Has bracketed field after timestamp
-            level = bracketMatch.captured(1).trimmed();
-            rest = afterTs.mid(bracketMatch.capturedEnd()).trimmed();
-        } else {
-            // No bracket - check for bare level word
-            QStringList words = afterTs.split(QRegularExpression("\\s+"),
-                                               Qt::SkipEmptyParts);
-            if (!words.isEmpty() && LOG_LEVELS.contains(words[0].toUpper())) {
-                level = words[0];
-                rest = words.mid(1).join(" ");
-            }
-        }
-
-        // Try to detect module name (first word of rest that looks like identifier)
-        if (!rest.isEmpty()) {
-            QStringList words = rest.split(QRegularExpression("\\s+"),
-                                            Qt::SkipEmptyParts);
-            if (!words.isEmpty()) {
-                QString firstWord = words[0];
-                // Check if it looks like a module name (alphanumeric, no special chars)
-                if (QRegularExpression("^[A-Za-z][A-Za-z0-9_]*$").match(firstWord)
-                        .hasMatch()) {
-                    // Likely a module name
-                    if (!level.isEmpty()) {
-                        fieldPositions["has_module"]++;
-                    }
-                }
-            }
-        }
-
-        if (!level.isEmpty()) {
-            fieldPositions["has_level"]++;
-        }
-    }
-
-    // Build template based on analysis
-    bool hasLevel = fieldPositions.value("has_level", 0) > analyzeCount / 2;
-    bool hasModule = fieldPositions.value("has_module", 0) > analyzeCount / 2;
 
     // Determine timestamp format
     bool useBracketedTs = false;
@@ -325,6 +255,97 @@ QString LogFormatTemplate::analyzeLineStructure(const QStringList& lines)
         }
     }
 
+    // Analyze structure: collect bracketed fields after timestamp
+    // and classify them as level or extra fields
+    struct BracketFieldInfo {
+        int count = 0;
+        bool isLevel = false;
+    };
+    QMap<QString, BracketFieldInfo> bracketFieldMap; // field content -> info
+    int hasLevelCount = 0;
+    int hasModuleCount = 0;
+    int totalAnalyzed = 0;
+
+    for (int i = 0; i < analyzeCount; ++i) {
+        const QString& line = logLines[i];
+
+        // Find timestamp
+        QRegularExpressionMatch tsMatch;
+        tsMatch = useBracketedTs ? TS_BRACKETED.match(line) : TS_BARE.match(line);
+        if (!tsMatch.hasMatch())
+            continue;
+
+        totalAnalyzed++;
+        QString afterTs = line.mid(tsMatch.capturedEnd()).trimmed();
+
+        // Collect all bracketed fields after timestamp
+        QRegularExpression bracketRe(R"(^\s*\[([^\]]+)\])");
+        int pos = 0;
+        bool foundLevel = false;
+        QString remaining = afterTs;
+
+        while (pos < remaining.length()) {
+            QRegularExpressionMatch m = bracketRe.match(remaining, pos);
+            if (!m.hasMatch())
+                break;
+
+            QString content = m.captured(1).trimmed();
+            QString key = content.toUpper();
+
+            // Check if this looks like a log level
+            bool isLevel = false;
+            // Single word that matches known levels
+            if (!content.contains(' ') && LOG_LEVELS.contains(key)) {
+                isLevel = true;
+            }
+            // Multi-word bracket content is NOT a level (e.g., "C1 +0001")
+
+            if (isLevel && !foundLevel) {
+                foundLevel = true;
+                hasLevelCount++;
+                // Mark this position as level
+                BracketFieldInfo& info = bracketFieldMap["__LEVEL__"];
+                info.count++;
+                info.isLevel = true;
+            } else {
+                // Extra field - use position-based naming
+                QString fieldKey = QString("field_%1").arg(pos);
+                bracketFieldMap[fieldKey].count++;
+            }
+
+            pos = m.capturedEnd();
+        }
+
+        // If no bracketed level found, check for bare level word
+        if (!foundLevel) {
+            QString afterBrackets = remaining.mid(pos).trimmed();
+            QStringList words = afterBrackets.split(QRegularExpression("\\s+"),
+                                                     Qt::SkipEmptyParts);
+            if (!words.isEmpty() && LOG_LEVELS.contains(words[0].toUpper())) {
+                hasLevelCount++;
+            }
+        }
+
+        // Check for module name in remaining text
+        QString afterBrackets = remaining.mid(pos).trimmed();
+        QStringList words = afterBrackets.split(QRegularExpression("\\s+"),
+                                                 Qt::SkipEmptyParts);
+        if (!words.isEmpty()) {
+            QString firstWord = words[0];
+            if (QRegularExpression("^[A-Za-z][A-Za-z0-9_]*$").match(firstWord)
+                    .hasMatch()) {
+                hasModuleCount++;
+            }
+        }
+    }
+
+    if (totalAnalyzed == 0)
+        return QString();
+
+    // Build template
+    bool hasLevel = hasLevelCount > totalAnalyzed / 2;
+    bool hasModule = hasModuleCount > totalAnalyzed / 2;
+
     QString templateStr;
     if (useBracketedTs) {
         templateStr = "[{timestamp}]";
@@ -332,26 +353,40 @@ QString LogFormatTemplate::analyzeLineStructure(const QStringList& lines)
         templateStr = "{timestamp}";
     }
 
-    if (hasLevel) {
-        // Check if level is in brackets
-        QRegularExpression bracketLevel(R"(\[\s*\w+\s*\])");
-        bool levelInBrackets = false;
-        for (int i = 0; i < qMin(5, logLines.size()); ++i) {
-            QRegularExpressionMatch tsMatch = useBracketedTs
-                                                  ? TS_BRACKETED.match(logLines[i])
-                                                  : TS_BARE.match(logLines[i]);
-            if (tsMatch.hasMatch()) {
-                QString afterTs = logLines[i].mid(tsMatch.capturedEnd()).trimmed();
-                if (bracketLevel.match(afterTs).hasMatch()) {
-                    levelInBrackets = true;
-                    break;
-                }
+    // Collect bracketed fields in order from first line
+    // Re-parse first line to get field order
+    QRegularExpressionMatch firstTsMatch;
+    firstTsMatch = useBracketedTs ? TS_BRACKETED.match(logLines[0])
+                                  : TS_BARE.match(logLines[0]);
+    if (firstTsMatch.hasMatch()) {
+        QString afterTs = logLines[0].mid(firstTsMatch.capturedEnd()).trimmed();
+        QRegularExpression bracketRe(R"(^\s*\[([^\]]+)\])");
+        int pos = 0;
+        bool levelPlaced = false;
+        int extraFieldIdx = 1;
+
+        while (pos < afterTs.length()) {
+            QRegularExpressionMatch m = bracketRe.match(afterTs, pos);
+            if (!m.hasMatch())
+                break;
+
+            QString content = m.captured(1).trimmed();
+            bool isLevel = !content.contains(' ') &&
+                           LOG_LEVELS.contains(content.toUpper());
+
+            if (isLevel && hasLevel && !levelPlaced) {
+                templateStr += " [{level}]";
+                levelPlaced = true;
+            } else {
+                templateStr += QString(" [{field%1}]").arg(extraFieldIdx);
+                extraFieldIdx++;
             }
+
+            pos = m.capturedEnd();
         }
 
-        if (levelInBrackets) {
-            templateStr += " [{level}]";
-        } else {
+        // If level wasn't in brackets but we detected one
+        if (hasLevel && !levelPlaced) {
             templateStr += " {level}";
         }
     }
