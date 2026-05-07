@@ -35,7 +35,7 @@ LanguageManager& LanguageManager::instance()
  * languages. Default language is set to Chinese.
  */
 LanguageManager::LanguageManager()
-    : currentTranslator(nullptr), currentLanguage(Chinese)
+    : QObject(nullptr), currentTranslator(nullptr), currentLanguage(Chinese)
 {
     // Initialize language code mappings
     languageCodes[Chinese] = "zh_CN";
@@ -118,10 +118,8 @@ void LanguageManager::setLanguage(Language language)
     qDebug() << "Language changed to:" << languageToDisplayName(language);
 #endif
 
-    // Invoke callback function to trigger UI update
-    if (languageChangeCallback) {
-        languageChangeCallback(language);
-    }
+    // Emit signal to notify connected receivers of language change
+    emit languageChanged(language);
 }
 
 /**
@@ -275,18 +273,6 @@ void LanguageManager::loadTranslation(Language language)
 #ifdef LOG_DEBUG_ENABLED
     qDebug() << "=== End Language Change ===";
 #endif
-}
-
-/**
- * @brief Set callback function for language change notifications
- * @param callback Function to be called when language changes
- * @details The callback is invoked after successful language change to notify
- *          UI components that they should refresh their displayed text.
- */
-void LanguageManager::setLanguageChangeCallback(
-    std::function<void(Language)> callback)
-{
-    languageChangeCallback = callback;
 }
 
 /**

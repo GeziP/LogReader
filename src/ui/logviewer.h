@@ -14,12 +14,12 @@
 #ifndef LOGVIEWER_H
 #define LOGVIEWER_H
 
-#include <QObject>
 #include <QDateTime>
 #include <QList>
-#include <QVector>
 #include <QMainWindow>
+#include <QObject>
 #include <QStandardItem>
+#include <QVector>
 
 #include "../core/logentry.h"
 #include "../core/logexporter.h"
@@ -43,7 +43,10 @@ class QSplitter;
 class QModelIndex;
 class QHBoxLayout;
 class QLabel;
+class QMenu;
 QT_END_NAMESPACE
+
+class QTimer;
 
 // Forward declarations for application classes (global namespace)
 class LogTableModel;
@@ -245,71 +248,12 @@ private:
     void retranslateUI();
 
     /**
-     * @brief Display log entries in tree view
-     * @param logs List of LogEntry objects to display
-     * @details Populates the tree view model with log data, organizing entries
-     *          hierarchically and applying appropriate formatting and icons.
-     */
-    void displayLogs(const QList<LogEntry>& logs);
-
-    /**
-     * @brief Parse log file and extract log entries
-     * @param filePath Path to the log file
-     * @param encoding Character encoding to use for reading
-     * @return List of parsed LogEntry objects
-     * @details Reads the file line by line, extracts log entry information
-     *          (timestamp, level, module, content) using regular expressions.
-     */
-    QList<LogEntry> parseLogFile(const QString& filePath,
-                                 const QString& encoding);
-
-    /**
-     * @brief Filter log entries based on criteria
-     * @param logs Original list of log entries
-     * @param startTime Start of time range filter
-     * @param endTime End of time range filter
-     * @param levels List of log levels to include
-     * @param modules List of modules to include
-     * @return Filtered list of log entries
-     * @details Applies multiple filter criteria to reduce the log dataset
-     *          to entries matching user specifications.
-     */
-    QList<LogEntry> filterLogs(const QList<LogEntry>& logs,
-                               const QDateTime& startTime,
-                               const QDateTime& endTime,
-                               const QStringList& levels,
-                               const QStringList& modules);
-
-    // Search functionality methods
-    /**
-     * @brief Search for text within a tree item and its children
-     * @param item Tree item to search in
-     * @details Recursively searches through tree items for the current search
-     * term, highlighting matches and building a list of search results.
-     */
-    void searchInItem(QStandardItem* item);
-
-    /**
-     * @brief Clear all search highlighting
-     * @details Removes search highlighting from all tree items,
-     *          resetting them to normal display state.
-     */
-    void clearSearchHighlights();
-
-    /**
-     * @brief Clear search highlighting from an item and its children
-     * @param item Tree item to clear highlighting from
-     * @details Recursively removes highlighting from the specified item
-     *          and all its child items.
-     */
-    void clearHighlightsInItem(QStandardItem* item);
-
-    /**
      * @brief Apply search highlighting to matching items
      * @details Highlights all tree items that contain the current search term,
      *          making them visually distinct for easy identification.
      */
     void highlightSearchMatches();
+    void flushSearchDebounce();
 
     /**
      * @brief Expand tree view to show specified item
@@ -345,11 +289,12 @@ private:
     QComboBox* languageComboBox; ///< Dropdown for language selection
 
     // UI Controls - Main display
-    QTreeView* logTreeView;       ///< Main tree view for displaying logs
+    QTreeView* logTreeView; ///< Main tree view for displaying logs
     // Replaced heavy item model with lightweight table + proxy
-    class LogTableModel* sourceModel; ///< Lightweight source model
+    class LogTableModel* sourceModel;      ///< Lightweight source model
     class LogFilterProxyModel* proxyModel; ///< Filter proxy model
-    class HighlightDelegate* highlightDelegate; ///< Delegate for search highlight
+    class HighlightDelegate*
+        highlightDelegate; ///< Delegate for search highlight
 
     // UI Controls - Layout containers
     QGroupBox* timeGroupBox;   ///< Container for time range controls
@@ -369,24 +314,33 @@ private:
     QPushButton* deselectAllModulesButton; ///< Button to deselect all modules
 
     // UI Controls - Search
-    QLineEdit* searchLineEdit;     ///< Text input for search terms
+    QLineEdit* searchLineEdit; ///< Text input for search terms
     QPushButton*
         searchPreviousButton;      ///< Button to go to previous search result
     QPushButton* searchNextButton; ///< Button to go to next search result
     QPushButton* exportSearchResultsButton; ///< Button to export search results
 
+    // UI Controls - Retranslatable labels
+    QLabel* startTimeLabel = nullptr; ///< Label for start time selector
+    QLabel* endTimeLabel = nullptr;   ///< Label for end time selector
+    QLabel* encodingLabel = nullptr;  ///< Label for encoding selector
+    QLabel* languageLabel = nullptr;  ///< Label for language selector
+
+    // UI Controls - Menu
+    QMenu* fileMenu = nullptr; ///< File menu for retranslation
+
     // UI Controls - GitHub link
     QLabel* githubLinkLabel; ///< Clickable GitHub link in status bar
 
     // Data storage
-    QList<LogEntry> allLogs;   ///< Complete list of loaded log entries
-    QStringList allModules;    ///< List of all unique modules found in logs
-    QStringList allLevels;     ///< List of all unique log levels found
-    QString currentFilePath;   ///< Path of currently loaded log file
-    QString currentSearchText; ///< Current search term
-    QVector<int> searchResults; ///< Row indices in proxy model matching search
-    int currentSearchIndex;    ///< Index of currently selected search result
-    QFont logFont;             ///< Font used for displaying log content
+    QStringList allModules;      ///< List of all unique modules found in logs
+    QStringList allLevels;       ///< List of all unique log levels found
+    QString currentFilePath;     ///< Path of currently loaded log file
+    QString currentSearchText;   ///< Current search term
+    QVector<int> searchResults;  ///< Row indices in proxy model matching search
+    int currentSearchIndex;      ///< Index of currently selected search result
+    QFont logFont;               ///< Font used for displaying log content
+    QTimer* searchDebounceTimer; ///< Debounce timer for search input
 };
 
 #endif // LOGVIEWER_H

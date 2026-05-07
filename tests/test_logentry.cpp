@@ -10,6 +10,7 @@
  */
 
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QString>
 
 #include "logentry.h"
@@ -70,7 +71,7 @@ void TestLogEntry::initTestCase()
 
     // 创建有效的测试条目
     validEntry.timestamp = QDateTime::fromString("2025-06-27 08:36:19.123",
-                                                 "yyyy-MM-dd hh:mm:ss.zzz");
+                                                 "yyyy-MM-dd HH:mm:ss.zzz");
     validEntry.level = "INFO";
     validEntry.module = "ModuleName";
     validEntry.message = "正常信息日志";
@@ -137,7 +138,7 @@ void TestLogEntry::testTimestampParsing()
 {
     QString logLine = "[2025-06-27 08:36:19.123] [INFO] [Module] : Message";
     QDateTime expectedTime = QDateTime::fromString("2025-06-27 08:36:19.123",
-                                                   "yyyy-MM-dd hh:mm:ss.zzz");
+                                                   "yyyy-MM-dd HH:mm:ss.zzz");
 
     // 模拟解析过程
     LogEntry entry;

@@ -49,6 +49,7 @@ public:
     // Data operations
     void clear();
     void appendRows(const QVector<LogEntry>& rows);
+    void appendRows(QVector<LogEntry>&& rows);
     const LogEntry& at(int row) const;
     int size() const { return m_entries.size(); }
 

@@ -102,6 +102,15 @@ void LogTableModel::appendRows(const QVector<LogEntry>& rows)
     endInsertRows();
 }
 
+void LogTableModel::appendRows(QVector<LogEntry>&& rows)
+{
+    if (rows.isEmpty())
+        return;
+    beginInsertRows(QModelIndex(), m_entries.size(), m_entries.size() + rows.size() - 1);
+    m_entries += rows;  // Qt containers handle move when source is rvalue
+    endInsertRows();
+}
+
 const LogEntry& LogTableModel::at(int row) const
 {
     return m_entries.at(row);

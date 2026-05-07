@@ -18,25 +18,27 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# 包含项目源代码目录
-include_directories(${CMAKE_SOURCE_DIR}/src)
-include_directories(${CMAKE_SOURCE_DIR}/src/core)
-include_directories(${CMAKE_SOURCE_DIR}/src/ui)
-include_directories(${CMAKE_SOURCE_DIR}/src/utils)
-
 # 测试辅助宏
 macro(add_logviewer_test testname)
     add_executable(${testname} ${testname}.cpp)
-    
+
     if(Qt6_FOUND)
         target_link_libraries(${testname} Qt6::Test Qt6::Core Qt6::Widgets)
     else()
         target_link_libraries(${testname} Qt5::Test Qt5::Core Qt5::Widgets)
     endif()
-    
+
     # 链接项目源文件（根据需要）
     target_sources(${testname} PRIVATE ${ARGN})
-    
+
+    # 包含项目源代码目录
+    target_include_directories(${testname} PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/src/core
+        ${CMAKE_SOURCE_DIR}/src/ui
+        ${CMAKE_SOURCE_DIR}/src/utils
+    )
+
     # 添加到测试套件
     add_test(NAME ${testname} COMMAND ${testname})
     

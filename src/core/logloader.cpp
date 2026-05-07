@@ -10,8 +10,12 @@
 #include <QStringConverter>
 #endif
 
-LogLoader::LogLoader(const QString& filePath, const QString& encoding, int chunkSize, QObject* parent)
-    : QObject(parent), m_filePath(filePath), m_encoding(encoding), m_chunkSize(chunkSize)
+LogLoader::LogLoader(const QString& filePath, const QString& encoding,
+                     int chunkSize, QObject* parent)
+    : QObject(parent),
+      m_filePath(filePath),
+      m_encoding(encoding),
+      m_chunkSize(chunkSize)
 {
 }
 
@@ -19,7 +23,7 @@ void LogLoader::process()
 {
     QFile file(m_filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        emit error(QObject::tr("无法打开日志文件。"));
+        emit error(QObject::tr("无法打开日志文件：%1").arg(m_filePath));
         emit finished();
         return;
     }
@@ -38,13 +42,15 @@ void LogLoader::process()
     if (enc.has_value()) {
         in.setEncoding(*enc);
     } else {
-        emit error(QObject::tr("不支持的编码格式：%1，已回退为UTF-8").arg(m_encoding));
+        emit error(
+            QObject::tr("不支持的编码格式：%1，已回退为UTF-8").arg(m_encoding));
         in.setEncoding(QStringConverter::Utf8);
     }
 #endif
 
     // More tolerant spacing: allow variable spaces around tokens and colon
-    QRegularExpression regex(R"((?:\[\s*(.*?)\s*\])\s*(?:\[\s*(.*?)\s*\])\s*(?:\[\s*(.*?)\s*\])\s*:\s*(.*)$)");
+    QRegularExpression regex(
+        R"((?:\[\s*(.*?)\s*\])\s*(?:\[\s*(.*?)\s*\])\s*(?:\[\s*(.*?)\s*\])\s*:\s*(.*)$)");
     regex.optimize();
     QVector<LogEntry> buffer;
     buffer.reserve(m_chunkSize);
@@ -69,9 +75,11 @@ void LogLoader::process()
         QRegularExpressionMatch match = regex.match(line);
         if (match.hasMatch()) {
             LogEntry entry;
-            entry.timestamp = QDateTime::fromString(match.captured(1), "yyyy-MM-dd HH:mm:ss.zzz");
+            entry.timestamp = QDateTime::fromString(match.captured(1),
+                                                    "yyyy-MM-dd HH:mm:ss.zzz");
             if (!entry.timestamp.isValid()) {
-                entry.timestamp = QDateTime::fromString(match.captured(1), "yyyy-MM-dd HH:mm:ss");
+                entry.timestamp = QDateTime::fromString(match.captured(1),
+                                                        "yyyy-MM-dd HH:mm:ss");
             }
             entry.level = match.captured(2).trimmed();
             entry.module = match.captured(3).trimmed();
@@ -82,8 +90,10 @@ void LogLoader::process()
                     minTime = maxTime = entry.timestamp;
                     hasTime = true;
                 } else {
-                    if (entry.timestamp < minTime) minTime = entry.timestamp;
-                    if (entry.timestamp > maxTime) maxTime = entry.timestamp;
+                    if (entry.timestamp < minTime)
+                        minTime = entry.timestamp;
+                    if (entry.timestamp > maxTime)
+                        maxTime = entry.timestamp;
                 }
             }
             modulesSet.insert(entry.module);
@@ -95,7 +105,8 @@ void LogLoader::process()
                 buffer.clear();
                 // 仅在块处理完成时计算和发射进度，减少计算频率
                 if (totalBytes > 0) {
-                    int percent = static_cast<int>((processedBytes * 100) / totalBytes);
+                    int percent =
+                        static_cast<int>((processedBytes * 100) / totalBytes);
                     emit progress(percent);
                 }
             }
@@ -118,5 +129,3 @@ void LogLoader::process()
     emit progress(100);
     emit finished();
 }
-
-

@@ -16,6 +16,7 @@
 #include <QSettings>
 #include <QString>
 #include <QStringList>
+#include <memory>
 
 /**
  * @class AppSettings
@@ -103,7 +104,7 @@ private:
     AppSettings& operator=(const AppSettings&) =
         delete;                               ///< Deleted assignment operator
 
-    QSettings* settings; ///< Qt settings object for persistent storage
+    std::unique_ptr<QSettings> settings; ///< Qt settings object for persistent storage
 
     // 配置键名
     static const QString KEY_RECENT_LOG_DIR;

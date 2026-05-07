@@ -281,15 +281,6 @@ private:
     QString escapeForCsv(const QString& field);
 
     /**
-     * @brief Escape special characters for JSON format
-     * @param field Text field to escape
-     * @return Properly escaped text safe for JSON format
-     * @details Handles quote, backslash, and control character escaping
-     * according to JSON standards, ensuring valid JSON output.
-     */
-    QString escapeForJson(const QString& field);
-
-    /**
      * @brief Emit progress signal with calculated percentage
      * @param current Current item being processed
      * @param total Total number of items to process

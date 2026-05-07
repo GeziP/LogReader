@@ -13,10 +13,12 @@
 #include <QApplication>
 #include <QDebug>
 #include <QLibraryInfo>
+#include <QMetaType>
 #include <QMessageBox>
 #include <QTranslator>
 #include <exception>
 
+#include "core/logentry.h"
 #include "ui/logviewer.h"
 #include "utils/languagemanager.h"
 
@@ -64,6 +66,10 @@ int main(int argc, char* argv[])
     qDebug() << "Application directory:" << QApplication::applicationDirPath();
     qDebug() << "Initializing language manager...";
 #endif
+
+    // Register metatypes for cross-thread signal-slot connections
+    qRegisterMetaType<LogEntry>("LogEntry");
+    qRegisterMetaType<QVector<LogEntry>>("QVector<LogEntry>");
 
     // Initialize language management system
     LanguageManager::instance().initialize();
