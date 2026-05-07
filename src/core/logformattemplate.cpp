@@ -166,10 +166,22 @@ LogFormatTemplate LogFormatTemplate::detect(const QStringList& sampleLines)
         }
     }
 
-    // Require at least 50% match rate
-    int threshold = qMax(1, sampleLines.size() / 2);
+    // Require at least 20% match rate (for mixed-content logs)
+    int threshold = qMax(1, sampleLines.size() / 5);
     if (bestIndex >= 0 && bestMatchCount >= threshold) {
         return LogFormatTemplate(presetList[bestIndex].templateStr);
+    }
+
+    // Fallback: try to match timestamp-only pattern
+    LogFormatTemplate fallback(QStringLiteral("[{timestamp}] {message}"));
+    int fallbackCount = 0;
+    for (const QString& line : sampleLines) {
+        if (fallback.regex().match(line).hasMatch()) {
+            fallbackCount++;
+        }
+    }
+    if (fallbackCount >= threshold) {
+        return fallback;
     }
 
     return LogFormatTemplate();
@@ -185,6 +197,10 @@ QList<LogFormatTemplate::Preset> LogFormatTemplate::presets()
         {QStringLiteral("Simple"),
          QStringLiteral("{timestamp} [{level}] {message}")},
         {QStringLiteral("Android Logcat"),
-         QStringLiteral("[{timestamp}] {level}/{module}: {message}")}
+         QStringLiteral("[{timestamp}] {level}/{module}: {message}")},
+        {QStringLiteral("Bracket Level"),
+         QStringLiteral("[{timestamp}] [{level}] {module} {message}")},
+        {QStringLiteral("Timestamp Only"),
+         QStringLiteral("[{timestamp}] {message}")}
     };
 }
