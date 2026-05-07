@@ -20,7 +20,9 @@ class LogLoader : public QObject
 
 public:
     explicit LogLoader(const QString& filePath, const QString& encoding,
-                       int chunkSize = 5000, QObject* parent = nullptr);
+                       int chunkSize = 5000,
+                       const QString& formatTemplate = QString(),
+                       QObject* parent = nullptr);
 
 public slots:
     void process();
@@ -37,6 +39,7 @@ private:
     QString m_filePath;
     QString m_encoding;
     int m_chunkSize;
+    QString m_formatTemplate;
 };
 
 #endif // LOGLOADER_H

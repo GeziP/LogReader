@@ -1,0 +1,15 @@
+[2024-09-30 08:51:52.257] I/MainActivity: open=0x00000000
+[2024-09-30 08:51:52.259] I/MainActivity: connected = true
+[2024-09-30 08:51:52.921] I/TaskManager: Thread pool and monitor scheduler initialized
+[2024-09-30 08:51:52.931] I/SampleHandler: SampleHandler instance created. Using mock: false
+[2024-09-30 08:51:52.943] I/IncubatorManager: IncubatorManager instance created, capacity: 150
+[2024-09-30 08:51:52.944] I/BufferManager: Initializing buffer, setting all HoleType to 0
+[2024-09-30 08:51:52.945] I/BufferManager: Buffer initialization complete
+[2024-09-30 08:51:52.945] I/SignalManager: Initializing SignalManager
+[2024-09-30 08:51:52.945] I/SignalManager: SignalManager initialized
+[2024-09-30 08:51:52.946] I/SampleHandler: SampleHandler initialized
+[2024-09-30 08:52:14.779] D/Network: HTTP GET /api/status - 200 OK (125ms)
+[2024-09-30 08:52:14.781] E/Database: Connection timeout after 30s
+[2024-09-30 08:52:14.782] W/Network: Retry attempt 3/5 failed
+[2024-09-30 08:52:16.521] V/Cache: Cache hit for key: user_session_abc123
+[2024-09-30 08:52:16.522] I/System: Application shutdown complete

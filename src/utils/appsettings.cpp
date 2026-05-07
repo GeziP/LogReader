@@ -23,6 +23,7 @@ const QString AppSettings::KEY_INCLUDE_LEVEL = "export/includeLevel";
 const QString AppSettings::KEY_INCLUDE_MODULE = "export/includeModule";
 const QString AppSettings::KEY_INCLUDE_CONTENT = "export/includeContent";
 const QString AppSettings::KEY_LANGUAGE = "ui/language";
+const QString AppSettings::KEY_LOG_FORMAT_TEMPLATE = "log/formatTemplate";
 
 AppSettings& AppSettings::instance()
 {
@@ -128,4 +129,15 @@ QString AppSettings::getLanguage() const
 {
     // 默认返回中文
     return settings->value(KEY_LANGUAGE, "zh_CN").toString();
+}
+
+void AppSettings::setLogFormatTemplate(const QString& formatTemplate)
+{
+    settings->setValue(KEY_LOG_FORMAT_TEMPLATE, formatTemplate);
+}
+
+QString AppSettings::getLogFormatTemplate() const
+{
+    // 空字符串表示自动识别
+    return settings->value(KEY_LOG_FORMAT_TEMPLATE, QString()).toString();
 }

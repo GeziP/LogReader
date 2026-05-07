@@ -39,6 +39,7 @@
 #include <QVBoxLayout>
 
 #include "exportdialog.h"
+#include "formattemplatedialog.h"
 #include "highlightdelegate.h"
 #include "logfilterproxymodel.h"
 #include "logtablemodel.h"
@@ -384,6 +385,12 @@ void LogViewer::setupUI()
     connect(toggleFilterAction, &QAction::triggered, this,
             &LogViewer::toggleFilterArea);
 
+    // Format template button
+    formatTemplateAction =
+        toolBar->addAction(QIcon(":/icons/template.png"), tr("日志格式"));
+    connect(formatTemplateAction, &QAction::triggered, this,
+            &LogViewer::onFormatTemplateAction);
+
     // Add separator
     toolBar->addSeparator();
 
@@ -485,7 +492,8 @@ void LogViewer::loadLogFile(const QString& filePath)
 
     // Background loader
     QThread* thread = new QThread(this);
-    LogLoader* loader = new LogLoader(filePath, encoding, 5000);
+    QString formatTemplate = AppSettings::instance().getLogFormatTemplate();
+    LogLoader* loader = new LogLoader(filePath, encoding, 5000, formatTemplate);
     loader->moveToThread(thread);
 
     connect(thread, &QThread::started, loader, &LogLoader::process);
@@ -887,6 +895,25 @@ void LogViewer::onExportSearchResults()
     }
 }
 
+void LogViewer::onFormatTemplateAction()
+{
+    FormatTemplateDialog dialog(this);
+    dialog.setTemplate(AppSettings::instance().getLogFormatTemplate());
+    if (dialog.exec() == QDialog::Accepted) {
+        QString newTemplate = dialog.getTemplate();
+        AppSettings::instance().setLogFormatTemplate(newTemplate);
+        // If a file is already loaded, offer to reload with new format
+        if (!currentFilePath.isEmpty()) {
+            QMessageBox::StandardButton reply = QMessageBox::question(
+                this, tr("Reload"),
+                tr("Format changed. Reload the current file with the new format?"));
+            if (reply == QMessageBox::Yes) {
+                loadLogFile(currentFilePath);
+            }
+        }
+    }
+}
+
 QList<LogEntry> LogViewer::getCurrentFilteredLogs() const
 {
     if (!proxyModel || !sourceModel) {
@@ -989,6 +1016,8 @@ void LogViewer::retranslateUI()
         filterAction->setText(tr("筛选"));
     if (toggleFilterAction)
         toggleFilterAction->setText(tr("显示/隐藏筛选区域"));
+    if (formatTemplateAction)
+        formatTemplateAction->setText(tr("日志格式"));
 
     // Re-set tool bar title
     QList<QToolBar*> toolBars = findChildren<QToolBar*>();

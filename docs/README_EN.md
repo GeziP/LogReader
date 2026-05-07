@@ -35,6 +35,7 @@
 | 🧠 **Smart Memory** | Remember last paths, export locations and format selections | ✅ |
 | 🎛️ **Batch Export** | One-click export to multiple formats for improved efficiency | ✅ |
 | 🌐 **Multi-encoding Support** | Support for UTF-8, GBK and other character encodings | ✅ |
+| 📝 **Log Format Template** | Customizable log format with auto-detection support | ✅ |
 
 
 ## 📸 Feature Showcase
@@ -128,12 +129,32 @@ make -j$(sysctl -n hw.ncpu)
 
 ## 💡 Usage Tips
 
-### 🔧 Supported Log Formats
-LogReader supports the following standard log formats:
-```
-[2025-06-27 08:36:19.123] [INFO] [ModuleName] : Log content
-[2025-06-27 08:36:19] [ERROR] [Database] : Connection failed
-```
+### 🔧 Log Format Templates
+LogReader supports customizable log format templates with auto-detection.
+
+#### Auto-detection
+When opening a log file, LogReader automatically detects the format and matches the best template.
+
+#### Supported Preset Templates
+| Template Name | Format Example |
+|---------------|----------------|
+| Default | `[2024-09-30 08:51:52.257] [INFO] [Module] : message` |
+| Log4j | `2024-09-30 08:51:52.257 INFO Module - message` |
+| Simple | `2024-09-30 08:51:52.257 [INFO] message` |
+| Android Logcat | `[2024-09-30 08:51:52.257] I/Module: message` |
+
+#### Custom Templates
+Click the **"Log Format"** button in the toolbar to:
+- Select preset templates
+- Customize template format (using `{timestamp}` `{level}` `{module}` `{message}` placeholders)
+- Preview parsing results in real-time
+
+#### Template Syntax
+- `{timestamp}` - Date/time string
+- `{level}` - Log level (INFO, ERROR, etc.)
+- `{module}` - Module name
+- `{message}` - Log content
+- Other characters are treated as literal delimiters
 
 ### ⚡ Performance Optimization Tips
 - 📊 **Large File Handling**: Recommend setting time range before opening large files
@@ -155,17 +176,22 @@ LogReader/
 │   ├── main.cpp          # Application entry point
 │   ├── ui/               # User interface module
 │   │   ├── logviewer.cpp/.h      # Main window implementation
-│   │   └── exportdialog.cpp/.h   # Export configuration dialog
+│   │   ├── exportdialog.cpp/.h   # Export configuration dialog
+│   │   └── formattemplatedialog.cpp/.h  # Format template dialog
 │   ├── core/             # Core logic module
 │   │   ├── logentry.h            # Log entry data structure
-│   │   └── logexporter.cpp/.h    # Export functionality
+│   │   ├── logexporter.cpp/.h    # Export functionality
+│   │   ├── logloader.cpp/.h      # Log file loader
+│   │   └── logformattemplate.cpp/.h  # Format template engine
 │   └── utils/            # Utility classes module
-│       └── appsettings.cpp/.h    # Application settings management
+│       ├── appsettings.cpp/.h    # Application settings management
+│       └── languagemanager.cpp/.h  # Language manager
 ├── resources/            # Resource files directory
 │   ├── icons/            # Icon resources
 │   └── resources.qrc     # Qt resource file
-├── docs/                 # Documentation and screenshots
+├── docs/                 # Documentation and sample logs
 ├── translations/         # Internationalization files
+├── tests/                # Unit tests
 ├── CMakeLists.txt        # CMake build configuration
 └── LogReader.pro         # Qt project file
 ```

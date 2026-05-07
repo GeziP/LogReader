@@ -1,0 +1,15 @@
+2024-09-30 08:51:52.257 INFO Application started successfully
+2024-09-30 08:51:52.259 INFO Loading configuration from config.ini
+2024-09-30 08:51:52.921 INFO Database connection established
+2024-09-30 08:51:52.931 INFO Cache initialized with 1000 entries
+2024-09-30 08:51:52.943 INFO Server listening on port 8080
+2024-09-30 08:51:52.944 DEBUG Processing request from 192.168.1.100
+2024-09-30 08:51:52.945 INFO User login: admin@example.com
+2024-09-30 08:51:52.945 WARN Session timeout configured to 30 minutes
+2024-09-30 08:51:52.946 INFO Heartbeat check: all services healthy
+2024-09-30 08:52:14.779 ERROR Failed to connect to external API: timeout
+2024-09-30 08:52:14.779 WARN Retrying connection in 5 seconds...
+2024-09-30 08:52:14.781 INFO Connection restored successfully
+2024-09-30 08:52:14.782 DEBUG Query executed in 45ms
+2024-09-30 08:52:16.521 INFO Report generated: /tmp/report_20240930.pdf
+2024-09-30 08:52:16.522 FATAL Out of memory error, shutting down

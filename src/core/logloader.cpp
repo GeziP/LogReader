@@ -1,5 +1,7 @@
 #include "logloader.h"
 
+#include "logformattemplate.h"
+
 #include <QFile>
 #include <QRegularExpression>
 #include <QSet>
@@ -11,11 +13,13 @@
 #endif
 
 LogLoader::LogLoader(const QString& filePath, const QString& encoding,
-                     int chunkSize, QObject* parent)
+                     int chunkSize, const QString& formatTemplate,
+                     QObject* parent)
     : QObject(parent),
       m_filePath(filePath),
       m_encoding(encoding),
-      m_chunkSize(chunkSize)
+      m_chunkSize(chunkSize),
+      m_formatTemplate(formatTemplate)
 {
 }
 
@@ -48,10 +52,29 @@ void LogLoader::process()
     }
 #endif
 
-    // More tolerant spacing: allow variable spaces around tokens and colon
-    QRegularExpression regex(
-        R"((?:\[\s*(.*?)\s*\])\s*(?:\[\s*(.*?)\s*\])\s*(?:\[\s*(.*?)\s*\])\s*:\s*(.*)$)");
-    regex.optimize();
+    // Determine format template: use provided or auto-detect
+    LogFormatTemplate fmt;
+    if (m_formatTemplate.isEmpty()) {
+        // Auto-detect: read first 100 lines for probing
+        QStringList sampleLines;
+        qint64 startPos = in.pos();
+        while (!in.atEnd() && sampleLines.size() < 100) {
+            sampleLines.append(in.readLine());
+        }
+        in.seek(startPos);
+        fmt = LogFormatTemplate::detect(sampleLines);
+    } else {
+        fmt = LogFormatTemplate(m_formatTemplate);
+    }
+
+    if (!fmt.isValid()) {
+        emit error(QObject::tr("Invalid log format template: %1")
+                       .arg(fmt.errorMessage()));
+        emit finished();
+        return;
+    }
+
+    QRegularExpression regex = fmt.regex();
     QVector<LogEntry> buffer;
     buffer.reserve(m_chunkSize);
 
@@ -75,15 +98,27 @@ void LogLoader::process()
         QRegularExpressionMatch match = regex.match(line);
         if (match.hasMatch()) {
             LogEntry entry;
-            entry.timestamp = QDateTime::fromString(match.captured(1),
-                                                    "yyyy-MM-dd HH:mm:ss.zzz");
-            if (!entry.timestamp.isValid()) {
-                entry.timestamp = QDateTime::fromString(match.captured(1),
-                                                        "yyyy-MM-dd HH:mm:ss");
+            int tsIdx = fmt.captureIndex("timestamp");
+            int lvIdx = fmt.captureIndex("level");
+            int modIdx = fmt.captureIndex("module");
+            int msgIdx = fmt.captureIndex("message");
+
+            if (tsIdx >= 0) {
+                entry.timestamp = QDateTime::fromString(
+                    match.captured(tsIdx).trimmed(),
+                    "yyyy-MM-dd HH:mm:ss.zzz");
+                if (!entry.timestamp.isValid()) {
+                    entry.timestamp = QDateTime::fromString(
+                        match.captured(tsIdx).trimmed(),
+                        "yyyy-MM-dd HH:mm:ss");
+                }
             }
-            entry.level = match.captured(2).trimmed();
-            entry.module = match.captured(3).trimmed();
-            entry.message = match.captured(4);
+            entry.level = (lvIdx >= 0) ? match.captured(lvIdx).trimmed()
+                                       : QString();
+            entry.module = (modIdx >= 0) ? match.captured(modIdx).trimmed()
+                                         : QString();
+            entry.message = (msgIdx >= 0) ? match.captured(msgIdx)
+                                          : QString();
 
             if (entry.timestamp.isValid()) {
                 if (!hasTime) {

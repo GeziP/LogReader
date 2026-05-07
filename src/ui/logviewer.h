@@ -196,6 +196,9 @@ private slots:
      */
     void onExportFiltered();
 
+    // Format template operations
+    void onFormatTemplateAction();
+
     // Language operations
     /**
      * @brief Handle language combo box selection change
@@ -310,6 +313,7 @@ private:
     QAction* filterAction;       ///< Filter action for toolbar
     QAction* toggleFilterAction; ///< Action to toggle filter area visibility
     QAction* exportAction;       ///< Export action for menu and toolbar
+    QAction* formatTemplateAction; ///< Format template action for toolbar
     QPushButton* selectAllModulesButton;   ///< Button to select all modules
     QPushButton* deselectAllModulesButton; ///< Button to deselect all modules
 

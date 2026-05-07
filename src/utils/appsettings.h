@@ -85,6 +85,10 @@ public:
      */
     QString getLanguage() const;
 
+    // 日志格式模板（空字符串表示自动识别）
+    void setLogFormatTemplate(const QString& formatTemplate);
+    QString getLogFormatTemplate() const;
+
 private:
     /**
      * @brief Private constructor for singleton pattern
@@ -116,6 +120,7 @@ private:
     static const QString KEY_INCLUDE_CONTENT;
     static const QString
         KEY_LANGUAGE; ///< Configuration key for language preference
+    static const QString KEY_LOG_FORMAT_TEMPLATE;
 };
 
 #endif // APPSETTINGS_H

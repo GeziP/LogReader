@@ -35,6 +35,7 @@
 | 🧠 **智能记忆** | 记住上次路径、导出位置和格式选择 | ✅ |
 | 🎛️ **批量导出** | 一键导出多种格式，提升工作效率 | ✅ |
 | 🌐 **多编码支持** | 支持UTF-8、GBK等多种字符编码 | ✅ |
+| 📝 **日志格式模板** | 支持自定义日志格式，自动识别常见格式 | ✅ |
 
 
 ## 📸 功能展示
@@ -130,12 +131,32 @@ make -j$(sysctl -n hw.ncpu)
 
 ## 💡 使用技巧
 
-### 🔧 日志格式支持
-LogReader支持以下标准日志格式：
-```
-[2025-06-27 08:36:19.123] [INFO] [ModuleName] : 日志内容
-[2025-06-27 08:36:19] [ERROR] [Database] : 连接失败
-```
+### 🔧 日志格式模板
+LogReader 支持自定义日志格式模板，自动识别常见日志格式。
+
+#### 自动识别
+打开日志文件时，LogReader 会自动检测格式并匹配最佳模板。
+
+#### 支持的预设模板
+| 模板名称 | 格式示例 |
+|---------|---------|
+| Default | `[2024-09-30 08:51:52.257] [INFO] [Module] : message` |
+| Log4j | `2024-09-30 08:51:52.257 INFO Module - message` |
+| Simple | `2024-09-30 08:51:52.257 [INFO] message` |
+| Android Logcat | `[2024-09-30 08:51:52.257] I/Module: message` |
+
+#### 自定义模板
+点击工具栏的 **"日志格式"** 按钮，可以：
+- 选择预设模板
+- 自定义模板格式（使用 `{timestamp}` `{level}` `{module}` `{message}` 占位符）
+- 实时预览解析效果
+
+#### 模板语法
+- `{timestamp}` - 时间戳
+- `{level}` - 日志级别（INFO、ERROR 等）
+- `{module}` - 模块名称
+- `{message}` - 日志内容
+- 其他字符作为字面量分隔符
 
 ### ⚡ 性能优化建议
 - 📊 **大文件处理**: 建议先设置时间范围后再打开大文件
@@ -157,17 +178,22 @@ LogReader/
 │   ├── main.cpp          # 应用程序入口
 │   ├── ui/               # 用户界面模块
 │   │   ├── logviewer.cpp/.h      # 主窗口实现
-│   │   └── exportdialog.cpp/.h   # 导出配置对话框
+│   │   ├── exportdialog.cpp/.h   # 导出配置对话框
+│   │   └── formattemplatedialog.cpp/.h  # 格式模板对话框
 │   ├── core/             # 核心逻辑模块
 │   │   ├── logentry.h            # 日志条目数据结构
-│   │   └── logexporter.cpp/.h    # 导出功能实现
+│   │   ├── logexporter.cpp/.h    # 导出功能实现
+│   │   ├── logloader.cpp/.h      # 日志加载器
+│   │   └── logformattemplate.cpp/.h  # 格式模板引擎
 │   └── utils/            # 工具类模块
-│       └── appsettings.cpp/.h    # 应用设置管理
+│       ├── appsettings.cpp/.h    # 应用设置管理
+│       └── languagemanager.cpp/.h  # 语言管理器
 ├── resources/            # 资源文件目录
 │   ├── icons/            # 图标资源
 │   └── resources.qrc     # Qt资源文件
-├── docs/                 # 文档和截图
+├── docs/                 # 文档和示例日志
 ├── translations/         # 国际化文件
+├── tests/                # 单元测试
 ├── CMakeLists.txt        # CMake构建配置
 └── LogReader.pro         # Qt工程文件
 ```
