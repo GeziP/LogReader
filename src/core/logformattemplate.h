@@ -30,6 +30,7 @@ public:
 
 private:
     void compile();
+    static QString analyzeLineStructure(const QStringList& lines);
 
     QString m_template;
     QRegularExpression m_regex;
