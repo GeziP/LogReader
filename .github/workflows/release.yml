@@ -42,12 +42,16 @@ jobs:
           PKG="LogReader-${VERSION}-Windows-x64"
           mkdir -p "$PKG"
 
-          # windeployqt ran via ENABLE_DEPLOY, collect outputs
+          # Copy exe first
           cp build/LogReader.exe "$PKG/"
-          cp build/*.dll "$PKG/" 2>/dev/null || true
-          for d in platforms styles imageformats translations; do
-            [ -d "build/$d" ] && cp -r "build/$d" "$PKG/$d"
-          done
+
+          # Run windeployqt to collect Qt dependencies
+          cd "$PKG"
+          windeployqt --release --no-translations LogReader.exe
+          cd ..
+
+          # Copy translations if available
+          cp -r build/translations "$PKG/translations" 2>/dev/null || true
           cp README.md "$PKG/" 2>/dev/null || true
 
           7z a "${PKG}.zip" "$PKG"
