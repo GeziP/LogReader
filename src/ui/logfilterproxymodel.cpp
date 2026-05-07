@@ -32,11 +32,7 @@ void LogFilterProxyModel::setModules(const QStringList& modules)
 
 void LogFilterProxyModel::setExtraFieldFilter(const QString& fieldName, const QSet<QString>& acceptedValues)
 {
-    if (acceptedValues.isEmpty()) {
-        m_extraFilters.remove(fieldName);
-    } else {
-        m_extraFilters[fieldName] = acceptedValues;
-    }
+    m_extraFilters[fieldName] = acceptedValues;
     invalidateFilter();
 }
 

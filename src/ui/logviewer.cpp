@@ -495,6 +495,17 @@ void LogViewer::loadLogFile(const QString& filePath)
 
     // Clear previous data
     sourceModel->clear();
+    // Reset dynamic columns from previous file
+    sourceModel->setExtraColumns(QStringList());
+    // Clear extra field filter UI
+    QLayoutItem* child;
+    while ((child = extraFieldsLayout->takeAt(0)) != nullptr) {
+        QWidget* widget = child->widget();
+        if (widget)
+            widget->deleteLater();
+        delete child;
+    }
+    extraFieldCheckBoxes.clear();
 
     // Background loader
     QThread* thread = new QThread(this);
@@ -623,7 +634,7 @@ void LogViewer::onFilterButtonClicked()
                     accepted.insert(cb->text());
                 }
             }
-            if (!accepted.isEmpty() && accepted.size() < it.value().size()) {
+            if (accepted.size() < it.value().size()) {
                 proxyModel->setExtraFieldFilter(it.key(), accepted);
             }
         }

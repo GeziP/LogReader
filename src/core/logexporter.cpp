@@ -20,6 +20,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSet>
 #include <QTextStream>
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QTextCodec>
@@ -273,14 +274,16 @@ bool LogExporter::exportToCsv(const QList<LogEntry>& logs,
         headers << QObject::tr("内容");
 
     // Collect extra field names from all entries
-    QStringList extraFieldNames;
-    if (!logs.isEmpty()) {
-        for (auto it = logs.first().extraFields.constBegin();
-             it != logs.first().extraFields.constEnd(); ++it) {
-            extraFieldNames.append(it.key());
-            headers << it.key();
+    QSet<QString> extraFieldNameSet;
+    for (const LogEntry& entry : logs) {
+        for (auto it = entry.extraFields.constBegin();
+             it != entry.extraFields.constEnd(); ++it) {
+            extraFieldNameSet.insert(it.key());
         }
     }
+    QStringList extraFieldNames(extraFieldNameSet.constBegin(), extraFieldNameSet.constEnd());
+    extraFieldNames.sort();
+    headers << extraFieldNames;
 
     out << headers.join(",") << "\n";
 
