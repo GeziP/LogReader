@@ -2,6 +2,7 @@
 #define LOGTABLEMODEL_H
 
 #include <QAbstractTableModel>
+#include <QMap>
 #include <QVector>
 #include <QVariant>
 
@@ -35,7 +36,8 @@ public:
         TimestampRole = Qt::UserRole + 1,
         LevelRole,
         ModuleRole,
-        MessageRole
+        MessageRole,
+        ExtraFieldsRole
     };
 
     explicit LogTableModel(QObject* parent = nullptr);
@@ -53,8 +55,13 @@ public:
     const LogEntry& at(int row) const;
     int size() const { return m_entries.size(); }
 
+    // Extra columns
+    void setExtraColumns(const QStringList& fieldNames);
+    QStringList extraColumns() const { return m_extraColumns; }
+
 private:
     QVector<LogEntry> m_entries;
+    QStringList m_extraColumns;
 };
 
 #endif // LOGTABLEMODEL_H

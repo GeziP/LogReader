@@ -17,6 +17,7 @@
 #include <QDateTime>
 #include <QList>
 #include <QMainWindow>
+#include <QMap>
 #include <QObject>
 #include <QStandardItem>
 #include <QVector>
@@ -257,6 +258,8 @@ private:
      */
     void highlightSearchMatches();
     void flushSearchDebounce();
+    void rebuildExtraFieldUI(const QStringList& fieldNames,
+                             const QMap<QString, QStringList>& fieldValues);
 
     /**
      * @brief Expand tree view to show specified item
@@ -304,6 +307,8 @@ private:
     QGroupBox* levelGroupBox;  ///< Container for level selection controls
     QGroupBox* moduleGroupBox; ///< Container for module selection controls
     QHBoxLayout* moduleLayout; ///< Layout for module checkboxes
+    QVBoxLayout* extraFieldsLayout; ///< Layout for extra field filter groups
+    QMap<QString, QList<QCheckBox*>> extraFieldCheckBoxes; ///< Extra field checkboxes
     QProgressBar* progressBar; ///< Progress indicator for long operations
     QWidget* filterWidget;     ///< Container for all filter controls
     QSplitter* mainSplitter;   ///< Splitter between filter area and main view

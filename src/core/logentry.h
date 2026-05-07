@@ -14,6 +14,7 @@
 #define LOGENTRY_H
 
 #include <QDateTime>
+#include <QMap>
 #include <QMetaType>
 #include <QString>
 
@@ -75,10 +76,13 @@ struct LogEntry
      */
     QString message;
 
+    QMap<QString, QString> extraFields;
+
     bool operator==(const LogEntry& other) const
     {
         return timestamp == other.timestamp && level == other.level &&
-               module == other.module && message == other.message;
+               module == other.module && message == other.message &&
+               extraFields == other.extraFields;
     }
 };
 

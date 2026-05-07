@@ -67,6 +67,22 @@ QString LogFormatTemplate::errorMessage() const
     return m_errorMessage;
 }
 
+QStringList LogFormatTemplate::allFieldNames() const
+{
+    return m_captureMap.keys();
+}
+
+QStringList LogFormatTemplate::extraFieldNames() const
+{
+    QStringList result;
+    for (auto it = m_captureMap.constBegin(); it != m_captureMap.constEnd(); ++it) {
+        if (!KNOWN_FIELDS.contains(it.key())) {
+            result.append(it.key());
+        }
+    }
+    return result;
+}
+
 void LogFormatTemplate::compile()
 {
     m_captureMap.clear();
@@ -106,11 +122,6 @@ void LogFormatTemplate::compile()
             }
 
             QString fieldName = m_template.mid(i + 1, closeBrace - i - 1);
-            if (!KNOWN_FIELDS.contains(fieldName)) {
-                m_errorMessage =
-                    QStringLiteral("Unknown placeholder '{%1}'").arg(fieldName);
-                return;
-            }
             if (m_captureMap.contains(fieldName)) {
                 m_errorMessage =
                     QStringLiteral("Duplicate placeholder '{%1}'").arg(fieldName);

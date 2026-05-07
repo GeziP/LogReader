@@ -2,6 +2,7 @@
 #define LOGFILTERPROXYMODEL_H
 
 #include <QDateTime>
+#include <QMap>
 #include <QSet>
 #include <QSortFilterProxyModel>
 #include <QStringList>
@@ -20,6 +21,8 @@ public:
     void setTimeRange(const QDateTime& start, const QDateTime& end);
     void setLevels(const QStringList& levels);
     void setModules(const QStringList& modules);
+    void setExtraFieldFilter(const QString& fieldName, const QSet<QString>& acceptedValues);
+    void clearExtraFieldFilters();
 
 protected:
     bool filterAcceptsRow(int source_row, const QModelIndex& source_parent) const override;
@@ -29,6 +32,7 @@ private:
     QDateTime m_end;
     QSet<QString> m_levelSet;
     QSet<QString> m_moduleSet;
+    QMap<QString, QSet<QString>> m_extraFilters;
 };
 
 #endif // LOGFILTERPROXYMODEL_H

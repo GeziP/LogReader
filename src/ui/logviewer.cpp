@@ -283,6 +283,11 @@ void LogViewer::setupUI()
     filterAreaLayout->addWidget(timeGroupBox);
     filterAreaLayout->addWidget(levelGroupBox);
     filterAreaLayout->addWidget(moduleGroupBox);
+
+    // Extra fields filter container (populated dynamically)
+    extraFieldsLayout = new QVBoxLayout();
+
+    filterAreaLayout->addLayout(extraFieldsLayout);
     filterAreaLayout->addLayout(encodingLayout);
     filterAreaLayout->addLayout(filterLayout);
     filterWidget->setLayout(filterAreaLayout);
@@ -515,7 +520,9 @@ void LogViewer::loadLogFile(const QString& filePath)
             });
     connect(loader, &LogLoader::summaryReady, this,
             [this](const QDateTime& minTime, const QDateTime& maxTime,
-                   const QStringList& modules, const QStringList& levels) {
+                   const QStringList& modules, const QStringList& levels,
+                   const QStringList& extraFieldNames,
+                   const QMap<QString, QStringList>& extraFieldValues) {
                 startTimeEdit->setDateTime(minTime);
                 endTimeEdit->setDateTime(maxTime);
                 allModules = modules;
@@ -541,6 +548,10 @@ void LogViewer::loadLogFile(const QString& filePath)
                     checkBox->setChecked(true);
                 for (QCheckBox* checkBox : moduleCheckBoxes)
                     checkBox->setChecked(true);
+
+                // Set extra columns on table model and rebuild extra field UI
+                sourceModel->setExtraColumns(extraFieldNames);
+                rebuildExtraFieldUI(extraFieldNames, extraFieldValues);
             });
     connect(loader, &LogLoader::finished, this,
             [this, loader, thread, filePath]() {
@@ -601,6 +612,21 @@ void LogViewer::onFilterButtonClicked()
         proxyModel->setTimeRange(startTime, endTime);
         proxyModel->setLevels(selectedLevels);
         proxyModel->setModules(selectedModules);
+
+        // Apply extra field filters
+        proxyModel->clearExtraFieldFilters();
+        for (auto it = extraFieldCheckBoxes.constBegin();
+             it != extraFieldCheckBoxes.constEnd(); ++it) {
+            QSet<QString> accepted;
+            for (QCheckBox* cb : it.value()) {
+                if (cb->isChecked()) {
+                    accepted.insert(cb->text());
+                }
+            }
+            if (!accepted.isEmpty() && accepted.size() < it.value().size()) {
+                proxyModel->setExtraFieldFilter(it.key(), accepted);
+            }
+        }
     }
 
     // Hide progress bar after filtering is complete
@@ -608,6 +634,42 @@ void LogViewer::onFilterButtonClicked()
 
     statusBar()->showMessage(tr("筛选完成，日志条目数：%1")
                                  .arg(proxyModel ? proxyModel->rowCount() : 0));
+}
+
+void LogViewer::rebuildExtraFieldUI(
+    const QStringList& fieldNames,
+    const QMap<QString, QStringList>& fieldValues)
+{
+    // Clear existing extra field UI
+    QLayoutItem* child;
+    while ((child = extraFieldsLayout->takeAt(0)) != nullptr) {
+        QWidget* widget = child->widget();
+        if (widget)
+            widget->deleteLater();
+        delete child;
+    }
+    extraFieldCheckBoxes.clear();
+
+    // Create a GroupBox for each extra field
+    for (const QString& fieldName : fieldNames) {
+        QGroupBox* groupBox = new QGroupBox(fieldName, this);
+        QHBoxLayout* layout = new QHBoxLayout();
+
+        QList<QCheckBox*> checkBoxes;
+        QStringList values = fieldValues.value(fieldName);
+        for (const QString& value : values) {
+            QCheckBox* cb = new QCheckBox(value, this);
+            cb->setChecked(true);
+            cb->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+            checkBoxes.append(cb);
+            layout->addWidget(cb);
+        }
+        layout->addStretch();
+
+        groupBox->setLayout(layout);
+        extraFieldsLayout->addWidget(groupBox);
+        extraFieldCheckBoxes[fieldName] = checkBoxes;
+    }
 }
 
 void LogViewer::toggleFilterArea()

@@ -1,5 +1,6 @@
 #include "logfilterproxymodel.h"
 
+#include <QMap>
 #include <QVariant>
 
 #include "logtablemodel.h"
@@ -29,6 +30,22 @@ void LogFilterProxyModel::setModules(const QStringList& modules)
     invalidateFilter();
 }
 
+void LogFilterProxyModel::setExtraFieldFilter(const QString& fieldName, const QSet<QString>& acceptedValues)
+{
+    if (acceptedValues.isEmpty()) {
+        m_extraFilters.remove(fieldName);
+    } else {
+        m_extraFilters[fieldName] = acceptedValues;
+    }
+    invalidateFilter();
+}
+
+void LogFilterProxyModel::clearExtraFieldFilters()
+{
+    m_extraFilters.clear();
+    invalidateFilter();
+}
+
 bool LogFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex& source_parent) const
 {
     QModelIndex tsIndex = sourceModel()->index(source_row, LogTableModel::ColumnTimestamp, source_parent);
@@ -50,6 +67,16 @@ bool LogFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex& so
 
     if (!m_moduleSet.isEmpty() && !m_moduleSet.contains(module))
         return false;
+
+    if (!m_extraFilters.isEmpty()) {
+        QModelIndex extraIndex = sourceModel()->index(source_row, LogTableModel::ColumnMessage, source_parent);
+        QMap<QString, QString> extraFields = sourceModel()->data(extraIndex, LogTableModel::ExtraFieldsRole).value<QMap<QString, QString>>();
+        for (auto it = m_extraFilters.constBegin(); it != m_extraFilters.constEnd(); ++it) {
+            QString value = extraFields.value(it.key());
+            if (!it.value().contains(value))
+                return false;
+        }
+    }
 
     return true;
 }

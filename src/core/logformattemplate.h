@@ -23,6 +23,9 @@ public:
     bool isValid() const;
     QString errorMessage() const;
 
+    QStringList allFieldNames() const;
+    QStringList extraFieldNames() const;
+
     static LogFormatTemplate detect(const QStringList& sampleLines);
     static QList<Preset> presets();
     static const QString DEFAULT_TEMPLATE;

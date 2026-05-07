@@ -83,6 +83,8 @@ void LogLoader::process()
     QDateTime maxTime;
     QSet<QString> modulesSet;
     QSet<QString> levelsSet;
+    QStringList extraFieldNames = fmt.extraFieldNames();
+    QMap<QString, QSet<QString>> extraFieldSets;
 
     qint64 totalBytes = file.size();
     qint64 processedBytes = 0;
@@ -119,6 +121,15 @@ void LogLoader::process()
                                          : QString();
             entry.message = (msgIdx >= 0) ? match.captured(msgIdx)
                                           : QString();
+
+            for (const QString& fieldName : extraFieldNames) {
+                int idx = fmt.captureIndex(fieldName);
+                if (idx >= 0) {
+                    QString value = match.captured(idx).trimmed();
+                    entry.extraFields[fieldName] = value;
+                    extraFieldSets[fieldName].insert(value);
+                }
+            }
 
             if (entry.timestamp.isValid()) {
                 if (!hasTime) {
@@ -160,7 +171,15 @@ void LogLoader::process()
     QStringList levels = QStringList(levelsSet.cbegin(), levelsSet.cend());
     modules.sort(Qt::CaseInsensitive);
     levels.sort(Qt::CaseInsensitive);
-    emit summaryReady(minTime, maxTime, modules, levels);
+
+    QMap<QString, QStringList> extraFieldValues;
+    for (auto it = extraFieldSets.constBegin(); it != extraFieldSets.constEnd(); ++it) {
+        QStringList values = QStringList(it.value().cbegin(), it.value().cend());
+        values.sort(Qt::CaseInsensitive);
+        extraFieldValues[it.key()] = values;
+    }
+
+    emit summaryReady(minTime, maxTime, modules, levels, extraFieldNames, extraFieldValues);
     emit progress(100);
     emit finished();
 }

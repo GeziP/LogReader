@@ -272,6 +272,16 @@ bool LogExporter::exportToCsv(const QList<LogEntry>& logs,
     if (config.includeContent)
         headers << QObject::tr("内容");
 
+    // Collect extra field names from all entries
+    QStringList extraFieldNames;
+    if (!logs.isEmpty()) {
+        for (auto it = logs.first().extraFields.constBegin();
+             it != logs.first().extraFields.constEnd(); ++it) {
+            extraFieldNames.append(it.key());
+            headers << it.key();
+        }
+    }
+
     out << headers.join(",") << "\n";
 
     // Write each log entry as a CSV row
@@ -359,6 +369,12 @@ bool LogExporter::exportToJson(const QList<LogEntry>& logs,
             writeField("content", entry.message);
         }
 
+        // Add extra fields
+        for (auto it = entry.extraFields.constBegin();
+             it != entry.extraFields.constEnd(); ++it) {
+            writeField(it.key(), it.value());
+        }
+
         out << "\n  }";
 
         if (i % 1000 == 0 || i == logs.size() - 1)
@@ -420,6 +436,16 @@ QString LogExporter::formatLogEntry(const LogEntry& entry,
             content = escapeForCsv(content);
         }
         fields << content;
+    }
+
+    // Add extra fields
+    for (auto it = entry.extraFields.constBegin();
+         it != entry.extraFields.constEnd(); ++it) {
+        QString value = it.value();
+        if (format == ExportConfig::CSV) {
+            value = escapeForCsv(value);
+        }
+        fields << value;
     }
 
     // Join fields with appropriate separator

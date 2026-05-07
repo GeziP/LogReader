@@ -19,7 +19,7 @@ int LogTableModel::columnCount(const QModelIndex& parent) const
 {
     if (parent.isValid())
         return 0;
-    return ColumnCount;
+    return ColumnCount + m_extraColumns.size();
 }
 
 QVariant LogTableModel::data(const QModelIndex& index, int role) const
@@ -47,6 +47,10 @@ QVariant LogTableModel::data(const QModelIndex& index, int role) const
         case ColumnMessage:
             return entry.message;
         default:
+            if (col >= ColumnCount && col < ColumnCount + m_extraColumns.size()) {
+                int extraIdx = col - ColumnCount;
+                return entry.extraFields.value(m_extraColumns[extraIdx]);
+            }
             return QVariant();
         }
     }
@@ -59,6 +63,8 @@ QVariant LogTableModel::data(const QModelIndex& index, int role) const
         return entry.module;
     if (role == MessageRole)
         return entry.message;
+    if (role == ExtraFieldsRole)
+        return QVariant::fromValue(entry.extraFields);
 
     return QVariant();
 }
@@ -78,6 +84,9 @@ QVariant LogTableModel::headerData(int section, Qt::Orientation orientation, int
         case ColumnMessage:
             return QObject::tr("内容");
         default:
+            if (section >= ColumnCount && section < ColumnCount + m_extraColumns.size()) {
+                return m_extraColumns[section - ColumnCount];
+            }
             break;
         }
     }
@@ -114,6 +123,13 @@ void LogTableModel::appendRows(QVector<LogEntry>&& rows)
 const LogEntry& LogTableModel::at(int row) const
 {
     return m_entries.at(row);
+}
+
+void LogTableModel::setExtraColumns(const QStringList& fieldNames)
+{
+    beginResetModel();
+    m_extraColumns = fieldNames;
+    endResetModel();
 }
 
 
