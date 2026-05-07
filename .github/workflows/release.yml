@@ -52,10 +52,11 @@ jobs:
 
           7z a "${PKG}.zip" "$PKG"
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: windows
-          path: LogReader-*.zip
+          files: LogReader-*.zip
+          fail_on_unmatched_files: false
 
   build-linux:
     name: Linux
@@ -88,10 +89,11 @@ jobs:
           chmod +x "$PKG/run.sh"
           tar czf "${PKG}.tar.gz" "$PKG"
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: linux
-          path: LogReader-*.tar.gz
+          files: LogReader-*.tar.gz
+          fail_on_unmatched_files: false
 
   build-macos:
     name: macOS
@@ -139,32 +141,22 @@ jobs:
           cp README.md "$PKG/" 2>/dev/null || true
           hdiutil create -srcfolder "$PKG" -volname "LogReader $VERSION" "${PKG}.dmg"
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: macos
-          path: LogReader-*.dmg
+          files: LogReader-*.dmg
+          fail_on_unmatched_files: false
 
-  release:
-    name: Publish Release
+  release-notes:
+    name: Update Release Notes
     runs-on: ubuntu-latest
     needs: [build-windows, build-linux, build-macos]
-    if: always() && (needs.build-windows.result == 'success' || needs.build-linux.result == 'success' || needs.build-macos.result == 'success')
+    if: always()
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Collect assets
-        run: |
-          mkdir assets
-          find artifacts -name "*.zip" -o -name "*.tar.gz" -o -name "*.dmg" | xargs -I{} cp {} assets/
-          ls -la assets/
-
-      - name: Release
+      - name: Generate release notes
         uses: softprops/action-gh-release@v2
         with:
-          files: assets/*
           generate_release_notes: true
-          fail_on_unmatched_files: false
+          append_body: true
