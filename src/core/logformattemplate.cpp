@@ -136,7 +136,24 @@ void LogFormatTemplate::compile()
             } else if (fieldName == QStringLiteral("timestamp")) {
                 regexStr += QStringLiteral("(.*?)");
             } else {
-                regexStr += QStringLiteral("(\\S+)");
+                // Check if this placeholder is inside brackets
+                // by looking at the preceding non-whitespace in the regex
+                bool insideBrackets = false;
+                for (int j = regexStr.length() - 1; j >= 0; --j) {
+                    if (regexStr[j].isSpace())
+                        continue;
+                    if (regexStr[j] == QLatin1Char('[') &&
+                        j > 0 && regexStr[j - 1] == QLatin1Char('\\')) {
+                        insideBrackets = true;
+                    }
+                    break;
+                }
+                if (insideBrackets) {
+                    // Inside brackets: match everything except ']'
+                    regexStr += QStringLiteral("([^\\]]+)");
+                } else {
+                    regexStr += QStringLiteral("(\\S+)");
+                }
             }
 
             i = closeBrace + 1;
@@ -170,7 +187,33 @@ LogFormatTemplate LogFormatTemplate::detect(const QStringList& sampleLines)
         return LogFormatTemplate();
     }
 
-    // Step 1: Try preset templates
+    int threshold = qMax(1, sampleLines.size() / 5);
+
+    // Step 1: Smart analysis first - detect field positions dynamically
+    // This is preferred because it can detect extra fields
+    QString smartTemplate = analyzeLineStructure(sampleLines);
+    if (!smartTemplate.isEmpty()) {
+        LogFormatTemplate fmt(smartTemplate);
+        if (fmt.isValid()) {
+            int matchCount = 0;
+            for (const QString& line : sampleLines) {
+                if (fmt.regex().match(line).hasMatch()) {
+                    matchCount++;
+                }
+            }
+            if (matchCount >= threshold) {
+                // If smart analysis found extra fields, use it directly
+                if (!fmt.extraFieldNames().isEmpty()) {
+                    return fmt;
+                }
+                // Otherwise, store as candidate and try presets too
+                int smartMatchCount = matchCount;
+                // Fall through to preset comparison
+            }
+        }
+    }
+
+    // Step 2: Try preset templates
     const auto presetList = presets();
     int bestPresetIndex = -1;
     int bestPresetCount = 0;
@@ -193,13 +236,26 @@ LogFormatTemplate LogFormatTemplate::detect(const QStringList& sampleLines)
         }
     }
 
-    int threshold = qMax(1, sampleLines.size() / 5);
     if (bestPresetIndex >= 0 && bestPresetCount >= threshold) {
+        // Re-check smart analysis: if it matches equally well and has extra fields, prefer it
+        if (!smartTemplate.isEmpty()) {
+            LogFormatTemplate smartFmt(smartTemplate);
+            if (smartFmt.isValid() && !smartFmt.extraFieldNames().isEmpty()) {
+                int smartCount = 0;
+                for (const QString& line : sampleLines) {
+                    if (smartFmt.regex().match(line).hasMatch()) {
+                        smartCount++;
+                    }
+                }
+                if (smartCount >= bestPresetCount) {
+                    return smartFmt;
+                }
+            }
+        }
         return LogFormatTemplate(presetList[bestPresetIndex].templateStr);
     }
 
-    // Step 2: Smart analysis - try to detect field positions dynamically
-    QString smartTemplate = analyzeLineStructure(sampleLines);
+    // Step 3: Use smart template even without extra fields
     if (!smartTemplate.isEmpty()) {
         LogFormatTemplate fmt(smartTemplate);
         if (fmt.isValid()) {
@@ -215,7 +271,7 @@ LogFormatTemplate LogFormatTemplate::detect(const QStringList& sampleLines)
         }
     }
 
-    // Step 3: Fallback - timestamp only
+    // Step 4: Fallback - timestamp only
     LogFormatTemplate fallback(QStringLiteral("[{timestamp}] {message}"));
     int fallbackCount = 0;
     for (const QString& line : sampleLines) {
@@ -279,7 +335,7 @@ QString LogFormatTemplate::analyzeLineStructure(const QStringList& lines)
         QString afterTs = line.mid(tsMatch.capturedEnd()).trimmed();
 
         // Collect all bracketed fields after timestamp
-        QRegularExpression bracketRe(R"(^\s*\[([^\]]+)\])");
+        QRegularExpression bracketRe(R"(\s*\[([^\]]+)\])");
         int pos = 0;
         bool foundLevel = false;
         QString remaining = afterTs;
@@ -360,7 +416,7 @@ QString LogFormatTemplate::analyzeLineStructure(const QStringList& lines)
                                   : TS_BARE.match(logLines[0]);
     if (firstTsMatch.hasMatch()) {
         QString afterTs = logLines[0].mid(firstTsMatch.capturedEnd()).trimmed();
-        QRegularExpression bracketRe(R"(^\s*\[([^\]]+)\])");
+        QRegularExpression bracketRe(R"(\s*\[([^\]]+)\])");
         int pos = 0;
         bool levelPlaced = false;
         int extraFieldIdx = 1;
