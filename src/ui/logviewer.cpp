@@ -432,8 +432,9 @@ void LogViewer::setupUI()
     githubLinkLabel = new QLabel(this);
     githubLinkLabel->setText("⭐ GitHub");
     githubLinkLabel->setStyleSheet(
-        "color: #0969da; text-decoration: underline; cursor: pointer; padding: "
+        "color: #0969da; text-decoration: underline; padding: "
         "2px 6px;");
+    githubLinkLabel->setCursor(Qt::PointingHandCursor);
     githubLinkLabel->setToolTip(tr("点击访问GitHub项目页面并给我们点赞"));
     githubLinkLabel->installEventFilter(this);
     statusBar()->addPermanentWidget(githubLinkLabel);
