@@ -61,6 +61,24 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_logentry.cpp")
     set(TEST_TARGETS test_logentry)
 endif()
 
+# 格式检测测试（不需要 QtTest，使用普通 main）
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_format_detect.cpp")
+    add_executable(test_format_detect test_format_detect.cpp
+        ${CMAKE_SOURCE_DIR}/src/core/logformattemplate.cpp
+    )
+    if(Qt6_FOUND)
+        target_link_libraries(test_format_detect Qt6::Core)
+    else()
+        target_link_libraries(test_format_detect Qt5::Core)
+    endif()
+    target_include_directories(test_format_detect PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/core
+    )
+    add_test(NAME test_format_detect COMMAND test_format_detect)
+    set_tests_properties(test_format_detect PROPERTIES TIMEOUT 15)
+    list(APPEND TEST_TARGETS test_format_detect)
+endif()
+
 # 以下测试文件暂未实现，注释掉避免CMake错误
 # if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_logexporter.cpp")
 #     add_logviewer_test(test_logexporter 

@@ -423,7 +423,10 @@ QString LogFormatTemplate::analyzeLineStructure(const QStringList& lines)
         }
     }
 
-    // Add bare level if found consistently and not already placed
+    // Build a base template (bracket fields only, no bare word fields)
+    QString baseTemplate = templateStr + " {message}";
+
+    // Try adding bare level if found consistently
     if (!levelPlaced && consistentBareLevel > analyzeCount / 2) {
         templateStr += " {level}";
         levelPlaced = true;
@@ -431,21 +434,39 @@ QString LogFormatTemplate::analyzeLineStructure(const QStringList& lines)
 
     // Add remaining words as fields (before key=value part)
     if (consistentWordsBeforeKV > analyzeCount / 2) {
-        int wordIdx = 1;
-        int startWord = hasBareLevel && levelPlaced ? 1 : 0; // skip level if already placed
+        int startWord = hasBareLevel && levelPlaced ? 1 : 0;
         for (int wi = startWord; wi < wordsBeforeKV; ++wi) {
             templateStr += QString(" {field%1}").arg(extraFieldIdx);
             extraFieldIdx++;
         }
     } else if (!remainingWords.isEmpty()) {
-        // No key=value detected, check if first word looks like a module
         if (remainingWords.size() >= 2) {
-            // First word might be task, second might be module
             templateStr += " {module}";
         }
     }
 
     templateStr += " {message}";
+
+    // Validate: if the detailed template doesn't match well due to
+    // multi-space alignment or other issues, fall back to the simpler base
+    if (!bracketFields.isEmpty()) {
+        LogFormatTemplate detailed(templateStr);
+        LogFormatTemplate simple(baseTemplate);
+        if (detailed.isValid() && simple.isValid()) {
+            int detailedCount = 0;
+            int simpleCount = 0;
+            for (int i = 0; i < analyzeCount; ++i) {
+                if (detailed.regex().match(logLines[i]).hasMatch())
+                    detailedCount++;
+                if (simple.regex().match(logLines[i]).hasMatch())
+                    simpleCount++;
+            }
+            // Use the simpler template if it matches significantly better
+            if (simpleCount > detailedCount) {
+                return baseTemplate;
+            }
+        }
+    }
 
     return templateStr;
 }

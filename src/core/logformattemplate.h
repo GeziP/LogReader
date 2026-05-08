@@ -28,12 +28,12 @@ public:
 
     static LogFormatTemplate detect(const QStringList& sampleLines);
     static QList<Preset> presets();
+    static QString analyzeLineStructure(const QStringList& lines);
     static const QString DEFAULT_TEMPLATE;
     static const QStringList KNOWN_FIELDS;
 
 private:
     void compile();
-    static QString analyzeLineStructure(const QStringList& lines);
 
     QString m_template;
     QRegularExpression m_regex;
