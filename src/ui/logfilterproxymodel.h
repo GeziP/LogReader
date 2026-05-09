@@ -32,7 +32,9 @@ private:
     QDateTime m_start;
     QDateTime m_end;
     QSet<QString> m_levelSet;
+    bool m_levelFilterActive = false;
     QSet<QString> m_moduleSet;
+    bool m_moduleFilterActive = false;
     QMap<QString, QSet<QString>> m_extraFilters;
     bool m_hideUnmatched = false;
 };

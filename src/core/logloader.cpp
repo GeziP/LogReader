@@ -64,6 +64,10 @@ void LogLoader::process()
         in.seek(startPos);
         LogFormatTemplate::DetectInfo detectInfo =
             LogFormatTemplate::detectWithInfo(sampleLines);
+        if (detectInfo.templateStr.isEmpty()) {
+            detectInfo.templateStr = LogFormatTemplate::DEFAULT_TEMPLATE;
+            detectInfo.reason = QObject::tr("自动检测失败，使用默认模板");
+        }
         fmt = LogFormatTemplate(detectInfo.templateStr);
         emit detectInfoReady(detectInfo.templateStr, detectInfo.reason);
     } else {

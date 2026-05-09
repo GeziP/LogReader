@@ -21,12 +21,14 @@ void LogFilterProxyModel::setTimeRange(const QDateTime& start, const QDateTime& 
 void LogFilterProxyModel::setLevels(const QStringList& levels)
 {
     m_levelSet = QSet<QString>(levels.cbegin(), levels.cend());
+    m_levelFilterActive = true;
     invalidateFilter();
 }
 
 void LogFilterProxyModel::setModules(const QStringList& modules)
 {
     m_moduleSet = QSet<QString>(modules.cbegin(), modules.cend());
+    m_moduleFilterActive = true;
     invalidateFilter();
 }
 
@@ -70,10 +72,10 @@ bool LogFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex& so
             return false;
     }
 
-    if (!m_levelSet.isEmpty() && !m_levelSet.contains(level))
+    if (m_levelFilterActive && !m_levelSet.contains(level))
         return false;
 
-    if (!m_moduleSet.isEmpty() && !m_moduleSet.contains(module))
+    if (m_moduleFilterActive && !m_moduleSet.contains(module))
         return false;
 
     if (!m_extraFilters.isEmpty()) {
