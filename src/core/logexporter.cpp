@@ -292,11 +292,15 @@ bool LogExporter::exportToCsv(const QList<LogEntry>& logs,
     out << headers.join(",") << "\n";
 
     // Write each log entry as a CSV row
+    int totalColumns = headers.size();
     for (int i = 0; i < logs.size(); ++i) {
         const LogEntry& entry = logs[i];
         if (!entry.matched) {
-            // Unmatched line: put rawLine in first column, rest empty
-            out << escapeForCsv(entry.rawLine) << "\n";
+            // Unmatched line: rawLine in first column, rest empty
+            out << escapeForCsv(entry.rawLine);
+            for (int c = 1; c < totalColumns; ++c)
+                out << ",";
+            out << "\n";
         } else {
             QString line = formatLogEntry(entry, config, ExportConfig::CSV, extraFieldNames);
             out << line << "\n";

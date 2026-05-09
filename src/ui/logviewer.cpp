@@ -489,6 +489,9 @@ void LogViewer::loadLogFile(const QString& filePath,
             if (presetIdx >= 0 && presetIdx < presets.size()) {
                 effectiveTemplate = presets[presetIdx].templateStr;
             }
+        } else if (mode < 0) {
+            // Custom mode: use saved custom template
+            effectiveTemplate = AppSettings::instance().getLogFormatTemplate();
         }
         // mode == 0: auto-detect (pass empty)
     }

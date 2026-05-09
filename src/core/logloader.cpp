@@ -94,9 +94,6 @@ void LogLoader::process()
         extraIdxList.append(fmt.captureIndex(fn));
     }
 
-    // Detect timestamp format once
-    bool tryMsFormat = true;
-
     bool hasTime = false;
     QDateTime minTime;
     QDateTime maxTime;
@@ -123,13 +120,8 @@ void LogLoader::process()
 
             if (tsIdx >= 0) {
                 QString tsStr = match.captured(tsIdx).trimmed();
-                if (tryMsFormat) {
-                    entry.timestamp = QDateTime::fromString(tsStr, "yyyy-MM-dd HH:mm:ss.zzz");
-                    if (!entry.timestamp.isValid()) {
-                        tryMsFormat = false;
-                        entry.timestamp = QDateTime::fromString(tsStr, "yyyy-MM-dd HH:mm:ss");
-                    }
-                } else {
+                entry.timestamp = QDateTime::fromString(tsStr, "yyyy-MM-dd HH:mm:ss.zzz");
+                if (!entry.timestamp.isValid()) {
                     entry.timestamp = QDateTime::fromString(tsStr, "yyyy-MM-dd HH:mm:ss");
                 }
             }
