@@ -287,6 +287,19 @@ LogFormatTemplate::DetectInfo LogFormatTemplate::detectWithInfo(const QStringLis
             ? LogFormatTemplate(presetList[bestPresetIndex].templateStr).allFieldNames().size()
             : 0;
 
+        // Prefer preset when it matches well — it preserves semantic field
+        // names (e.g. module) that smart detection may replace with generic
+        // placeholders (e.g. field1).
+        if (bestPresetIndex >= 0 && bestPresetCount >= threshold
+            && presetFieldCount >= smartFieldCount) {
+            info.templateStr = presetList[bestPresetIndex].templateStr;
+            info.reason = QStringLiteral("使用预设'%1', 匹配%2/%3行")
+                              .arg(presetList[bestPresetIndex].name)
+                              .arg(bestPresetCount)
+                              .arg(totalLines);
+            return info;
+        }
+
         if (smartFieldCount > presetFieldCount) {
             info.templateStr = smartTemplate;
             int extra = smartFieldCount - 4; // subtract known fields
@@ -296,15 +309,6 @@ LogFormatTemplate::DetectInfo LogFormatTemplate::detectWithInfo(const QStringLis
                               .arg(totalLines);
             if (extra > 0)
                 info.reason += QStringLiteral(", 含%1个自定义字段").arg(extra);
-            return info;
-        }
-        if (smartFieldCount == presetFieldCount && bestPresetIndex >= 0
-            && bestPresetCount >= threshold) {
-            info.templateStr = presetList[bestPresetIndex].templateStr;
-            info.reason = QStringLiteral("使用预设'%1', 匹配%2/%3行")
-                              .arg(presetList[bestPresetIndex].name)
-                              .arg(bestPresetCount)
-                              .arg(totalLines);
             return info;
         }
         info.templateStr = smartTemplate;

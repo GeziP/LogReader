@@ -269,7 +269,8 @@ private:
      * settings.
      */
     QString formatLogEntry(const LogEntry& entry, const ExportConfig& config,
-                           ExportConfig::Format format);
+                           ExportConfig::Format format,
+                           const QStringList& extraFieldNames = QStringList());
 
     /**
      * @brief Escape special characters for CSV format
