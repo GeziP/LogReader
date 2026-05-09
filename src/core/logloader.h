@@ -35,6 +35,7 @@ signals:
                       const QStringList& modules, const QStringList& levels,
                       const QStringList& extraFieldNames,
                       const QMap<QString, QStringList>& extraFieldValues);
+    void detectInfoReady(const QString& templateStr, const QString& reason);
     void finished();
     void error(const QString& message);
 

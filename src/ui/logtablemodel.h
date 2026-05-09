@@ -37,7 +37,8 @@ public:
         LevelRole,
         ModuleRole,
         MessageRole,
-        ExtraFieldsRole
+        ExtraFieldsRole,
+        MatchedRole
     };
 
     explicit LogTableModel(QObject* parent = nullptr);

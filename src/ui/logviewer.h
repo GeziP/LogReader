@@ -127,20 +127,6 @@ private slots:
      */
     void toggleFilterArea();
 
-    /**
-     * @brief Select all module checkboxes
-     * @details Convenience function to quickly select all available log modules
-     *          for filtering. Useful when user wants to see all modules.
-     */
-    void selectAllModules();
-
-    /**
-     * @brief Deselect all module checkboxes
-     * @details Convenience function to quickly clear all module selections.
-     *          Useful for starting fresh with module filtering.
-     */
-    void deselectAllModules();
-
     // Search operations
     /**
      * @brief Handle search text changes
@@ -199,6 +185,7 @@ private slots:
 
     // Format template operations
     void onFormatTemplateAction();
+    void onFormatModeChanged(int index);
 
     // Language operations
     /**
@@ -234,7 +221,8 @@ private:
      *          extracts unique modules and levels, and displays results in tree
      * view.
      */
-    void loadLogFile(const QString& filePath);
+    void loadLogFile(const QString& filePath,
+                     const QString& formatTemplate = QString());
 
     /**
      * @brief Set up the user interface
@@ -258,8 +246,9 @@ private:
      */
     void highlightSearchMatches();
     void flushSearchDebounce();
-    void rebuildExtraFieldUI(const QStringList& fieldNames,
-                             const QMap<QString, QStringList>& fieldValues);
+    void rebuildFieldFilterUI(const QStringList& fieldNames,
+                              const QMap<QString, QStringList>& fieldValues);
+    void updateTemplateInfo(const QString& tmpl, const QString& reason);
 
     /**
      * @brief Expand tree view to show specified item
@@ -289,8 +278,6 @@ private:
     QDateTimeEdit*
         startTimeEdit; ///< Start time selector for time range filtering
     QDateTimeEdit* endTimeEdit; ///< End time selector for time range filtering
-    QList<QCheckBox*> levelCheckBoxes;  ///< Checkboxes for log level selection
-    QList<QCheckBox*> moduleCheckBoxes; ///< Checkboxes for module selection
     QComboBox* encodingComboBox; ///< Dropdown for file encoding selection
     QComboBox* languageComboBox; ///< Dropdown for language selection
 
@@ -304,11 +291,8 @@ private:
 
     // UI Controls - Layout containers
     QGroupBox* timeGroupBox;   ///< Container for time range controls
-    QGroupBox* levelGroupBox;  ///< Container for level selection controls
-    QGroupBox* moduleGroupBox; ///< Container for module selection controls
-    QHBoxLayout* moduleLayout; ///< Layout for module checkboxes
-    QVBoxLayout* extraFieldsLayout; ///< Layout for extra field filter groups
-    QMap<QString, QList<QCheckBox*>> extraFieldCheckBoxes; ///< Extra field checkboxes
+    QVBoxLayout* fieldFiltersLayout; ///< Layout for dynamic field filter groups
+    QMap<QString, QList<QCheckBox*>> fieldCheckBoxes; ///< All field checkboxes (level, module, extras)
     QProgressBar* progressBar; ///< Progress indicator for long operations
     QWidget* filterWidget;     ///< Container for all filter controls
     QSplitter* mainSplitter;   ///< Splitter between filter area and main view
@@ -319,8 +303,9 @@ private:
     QAction* toggleFilterAction; ///< Action to toggle filter area visibility
     QAction* exportAction;       ///< Export action for menu and toolbar
     QAction* formatTemplateAction; ///< Format template action for toolbar
-    QPushButton* selectAllModulesButton;   ///< Button to select all modules
-    QPushButton* deselectAllModulesButton; ///< Button to deselect all modules
+    QComboBox* formatModeCombo;  ///< Format mode selector (auto/preset/custom)
+    QLabel* formatModeLabel;     ///< Label for format mode combo
+    QCheckBox* hideUnmatchedCheckBox; ///< Toggle to show/hide unmatched lines
 
     // UI Controls - Search
     QLineEdit* searchLineEdit; ///< Text input for search terms
@@ -341,9 +326,12 @@ private:
     // UI Controls - GitHub link
     QLabel* githubLinkLabel; ///< Clickable GitHub link in status bar
 
+    // UI Controls - Template info
+    QLabel* templateInfoLabel; ///< Template info label in status bar
+
     // Data storage
-    QStringList allModules;      ///< List of all unique modules found in logs
-    QStringList allLevels;       ///< List of all unique log levels found
+    QStringList pendingExtraColumns; ///< Extra column names from last summaryReady
+    QMap<QString, QStringList> pendingExtraFieldValues; ///< Extra field values from last summaryReady
     QString currentFilePath;     ///< Path of currently loaded log file
     QString currentSearchText;   ///< Current search term
     QVector<int> searchResults;  ///< Row indices in proxy model matching search

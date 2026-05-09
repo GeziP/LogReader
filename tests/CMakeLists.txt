@@ -79,6 +79,25 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_format_detect.cpp")
     list(APPEND TEST_TARGETS test_format_detect)
 endif()
 
+# 解析诊断工具（独立命令行程序，不做ctest）
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_parse_diag.cpp")
+    add_executable(test_parse_diag test_parse_diag.cpp
+        ${CMAKE_SOURCE_DIR}/src/core/logformattemplate.cpp
+    )
+    if(Qt6_FOUND)
+        target_link_libraries(test_parse_diag Qt6::Core)
+    else()
+        target_link_libraries(test_parse_diag Qt5::Core)
+    endif()
+    target_include_directories(test_parse_diag PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/core
+    )
+    # 设置工作目录为项目根目录，方便使用相对路径访问 docs/
+    set_target_properties(test_parse_diag PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tools"
+    )
+endif()
+
 # 以下测试文件暂未实现，注释掉避免CMake错误
 # if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_logexporter.cpp")
 #     add_logviewer_test(test_logexporter 

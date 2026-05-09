@@ -98,6 +98,123 @@ int main(int argc, char* argv[])
         fprintf(stderr, "\n");
     }
 
+    // Test 4: Task scheduler log (the problematic format)
+    fprintf(stderr, "\n=== Test 4: Task scheduler log ===\n");
+    QStringList schedulerLines = {
+        "[2026-05-06 09:50:34.726] ================================================================================",
+        "[CYCLE 1] BEGIN  budget=30000ms  activeTests=-",
+        "[modA]",
+        "  Task  Test      Rel    Action      Plan         State   WaitFor                   Emit",
+        "  ----  --------  -----  ----------  -----------  ------  ------------------------  ----------------",
+        "[2026-05-06 09:50:34.726] [C1 +0001] WAIT   B1   modB                 plan=0-100       missing=[S(A1.done)]",
+        "[2026-05-06 09:50:34.726] [C1 +0001] START  A1   modA                 plan=0-100       actual=1",
+        "[2026-05-06 09:50:34.726] [C1 +0001] END    A1   modA                 plan=0-100       actual=1-1           startDelay=+1",
+        "[2026-05-06 09:50:34.726] [C1 +0001] READY  B1   modB                 <- S(A1.done) [final]",
+        "[2026-05-06 09:50:34.726] [C1 +0001] EMIT   A1   -> S(A1.done)  wakes=[B1]",
+        "[2026-05-06 09:50:40.799] [C1 +0000] FAULT  fault_task#71 unknown              Test fault",
+        "[2026-05-06 09:50:40.800] [C1 +0000] START  normal_task#72 unknown              plan=0-0         actual=0",
+        "[2026-05-06 09:50:46.504] [C1 +0000] START  high_priority#147 unknown              plan=0-0         actual=0",
+        "[2026-05-06 09:50:48.283] [C1 +0061] START  offset_task#171 unknown              plan=50-50       actual=61",
+    };
+    {
+        LogFormatTemplate fmt = LogFormatTemplate::detect(schedulerLines);
+        check("valid", fmt.isValid(), fmt.errorMessage().toUtf8().constData());
+        fprintf(stderr, "  template: %s\n", fmt.templateString().toUtf8().constData());
+
+        QRegularExpression tsRe(R"(\[\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?\])");
+        int mc = 0;
+        int unmatchedTimestamped = 0;
+        for (const QString& line : schedulerLines) {
+            if (tsRe.match(line).hasMatch()) {
+                if (fmt.regex().match(line).hasMatch()) {
+                    mc++;
+                } else {
+                    fprintf(stderr, "  UNMATCHED timestamped: %s\n", line.left(80).toUtf8().constData());
+                    unmatchedTimestamped++;
+                }
+            }
+        }
+        fprintf(stderr, "  matched: %d, unmatched timestamped: %d\n", mc, unmatchedTimestamped);
+
+        // Check that FAULT is recognized as a level
+        check("FAULT in LOG_LEVELS",
+              fmt.allFieldNames().contains("level"),
+              "level field should exist");
+
+        // Verify specific field extraction
+        QRegularExpression regex = fmt.regex();
+        QRegularExpressionMatch m = regex.match(schedulerLines[5]); // WAIT line
+        if (m.hasMatch()) {
+            int lvIdx = fmt.captureIndex("level");
+            int msgIdx = fmt.captureIndex("message");
+            QString level = (lvIdx >= 0) ? m.captured(lvIdx) : "";
+            QString message = (msgIdx >= 0) ? m.captured(msgIdx) : "";
+            fprintf(stderr, "  WAIT line: level='%s' message='%s'\n",
+                    level.toUtf8().constData(), message.left(60).toUtf8().constData());
+            check("WAIT level", level == "WAIT",
+                  QString("got '%1'").arg(level).toUtf8().constData());
+        }
+
+        // Check FAULT line
+        QRegularExpressionMatch fm = regex.match(schedulerLines[10]); // FAULT line
+        if (fm.hasMatch()) {
+            int lvIdx = fmt.captureIndex("level");
+            QString level = (lvIdx >= 0) ? fm.captured(lvIdx) : "";
+            fprintf(stderr, "  FAULT line: level='%s'\n", level.toUtf8().constData());
+            check("FAULT matched", true);
+            check("FAULT level", level == "FAULT",
+                  QString("got '%1'").arg(level).toUtf8().constData());
+        } else {
+            check("FAULT matched", false, "FAULT line did not match template");
+        }
+
+        // Check EMIT line
+        QRegularExpressionMatch em = regex.match(schedulerLines[9]); // EMIT line
+        if (em.hasMatch()) {
+            int lvIdx = fmt.captureIndex("level");
+            QString level = (lvIdx >= 0) ? em.captured(lvIdx) : "";
+            fprintf(stderr, "  EMIT line: level='%s'\n", level.toUtf8().constData());
+            check("EMIT matched", true);
+        } else {
+            check("EMIT matched", false, "EMIT line did not match template");
+        }
+    }
+
+    // Test 5: Flexible spacing - verify template handles multi-space alignment
+    fprintf(stderr, "\n=== Test 5: Flexible spacing ===\n");
+    QStringList spacedLines = {
+        "[2026-05-06 09:50:34.726] [C1 +0001] START  A1   modA                 plan=0-100       actual=1",
+        "[2026-05-06 09:50:34.726] [C1 +0001] END    A1   modA                 plan=0-100       actual=1-1           startDelay=+1",
+        "[2026-05-06 09:50:34.726] [C1 +0001] WAIT   B1   modB                 plan=0-100       missing=[S(A1.done)]",
+        "[2026-05-06 09:50:40.799] [C1 +0000] FAULT  fault_task#71 unknown              Test fault",
+    };
+    {
+        // Test with a known template
+        LogFormatTemplate fmt("[{timestamp}] [{field1}] {level} {field2} {field3} {message}");
+        check("flex template valid", fmt.isValid(), fmt.errorMessage().toUtf8().constData());
+
+        int mc = 0;
+        for (const QString& line : spacedLines) {
+            QRegularExpressionMatch m = fmt.regex().match(line);
+            if (m.hasMatch()) {
+                mc++;
+                int lvIdx = fmt.captureIndex("level");
+                int f2Idx = fmt.captureIndex("field2");
+                int f3Idx = fmt.captureIndex("field3");
+                int msgIdx = fmt.captureIndex("message");
+                fprintf(stderr, "  level='%s' field2='%s' field3='%s' msg='%s'\n",
+                        m.captured(lvIdx).toUtf8().constData(),
+                        m.captured(f2Idx).toUtf8().constData(),
+                        m.captured(f3Idx).toUtf8().constData(),
+                        m.captured(msgIdx).left(40).toUtf8().constData());
+            } else {
+                fprintf(stderr, "  NO MATCH: %s\n", line.left(60).toUtf8().constData());
+            }
+        }
+        check("all spaced lines match", mc == spacedLines.size(),
+              QString("%1/%2").arg(mc).arg(spacedLines.size()).toUtf8().constData());
+    }
+
     fprintf(stderr, "\n=== Results: %s ===\n", failures == 0 ? "ALL PASSED" : QString("%1 FAILED").arg(failures).toUtf8().constData());
     return failures;
 }

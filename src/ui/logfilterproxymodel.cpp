@@ -42,8 +42,20 @@ void LogFilterProxyModel::clearExtraFieldFilters()
     invalidateFilter();
 }
 
+void LogFilterProxyModel::setHideUnmatched(bool hide)
+{
+    m_hideUnmatched = hide;
+    invalidateFilter();
+}
+
 bool LogFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex& source_parent) const
 {
+    // Unmatched lines: hide if m_hideUnmatched is set, otherwise always pass
+    QModelIndex msgIndex = sourceModel()->index(source_row, LogTableModel::ColumnMessage, source_parent);
+    bool matched = sourceModel()->data(msgIndex, LogTableModel::MatchedRole).toBool();
+    if (!matched)
+        return !m_hideUnmatched;
+
     QModelIndex tsIndex = sourceModel()->index(source_row, LogTableModel::ColumnTimestamp, source_parent);
     QModelIndex lvlIndex = sourceModel()->index(source_row, LogTableModel::ColumnLevel, source_parent);
     QModelIndex modIndex = sourceModel()->index(source_row, LogTableModel::ColumnModule, source_parent);

@@ -34,6 +34,21 @@ QVariant LogTableModel::data(const QModelIndex& index, int role) const
 
     const LogEntry& entry = m_entries.at(row);
 
+    if (role == MatchedRole)
+        return entry.matched;
+
+    if (!entry.matched) {
+        // Unmatched line: show rawLine in message column, line number only
+        if (role == Qt::DisplayRole) {
+            if (col == ColumnLine)
+                return row + 1;
+            if (col == ColumnMessage)
+                return entry.rawLine;
+            return QVariant();
+        }
+        return QVariant();
+    }
+
     if (role == Qt::DisplayRole) {
         switch (col) {
         case ColumnLine:

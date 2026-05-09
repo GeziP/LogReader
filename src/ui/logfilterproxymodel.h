@@ -23,6 +23,7 @@ public:
     void setModules(const QStringList& modules);
     void setExtraFieldFilter(const QString& fieldName, const QSet<QString>& acceptedValues);
     void clearExtraFieldFilters();
+    void setHideUnmatched(bool hide);
 
 protected:
     bool filterAcceptsRow(int source_row, const QModelIndex& source_parent) const override;
@@ -33,6 +34,7 @@ private:
     QSet<QString> m_levelSet;
     QSet<QString> m_moduleSet;
     QMap<QString, QSet<QString>> m_extraFilters;
+    bool m_hideUnmatched = false;
 };
 
 #endif // LOGFILTERPROXYMODEL_H
