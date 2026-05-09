@@ -1,0 +1,10 @@
+[2025-01-15 08:00:01.123] [INFO] [C1 +0001] START TaskA modA : 初始化系统
+[2025-01-15 08:00:02.456] [DEBUG] [C1 +0002] WAIT TaskB modB : 等待资源分配
+[2025-01-15 08:00:03.789] [INFO] [C2 +0001] START TaskA modA : 开始处理请求
+[2025-01-15 08:00:04.012] [WARN] [C1 +0003] EMIT TaskC modC : 发送警告信号
+[2025-01-15 08:00:05.345] [ERROR] [C2 +0002] FAIL TaskB modB : 连接超时
+[2025-01-15 08:00:06.678] [INFO] [C1 +0004] PASS TaskA modA : 测试通过
+[2025-01-15 08:00:07.901] [DEBUG] [C3 +0001] READY TaskD modD : 就绪状态
+[2025-01-15 08:00:08.234] [INFO] [C2 +0003] END TaskC modC : 任务完成
+[2025-01-15 08:00:09.567] [ERROR] [C1 +0005] FAIL TaskB modB : 数据校验失败
+[2025-01-15 08:00:10.890] [INFO] [C3 +0002] START TaskA modA : 重新初始化

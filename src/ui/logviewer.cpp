@@ -45,6 +45,7 @@
 #include "logtablemodel.h"
 
 #include "../core/logloader.h"
+#include "../core/logformattemplate.h"
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QTextCodec>
 #else
@@ -82,6 +83,10 @@ LogViewer::LogViewer(QWidget* parent)
       sourceModel(nullptr),
       proxyModel(nullptr),
       highlightDelegate(nullptr),
+      formatModeCombo(nullptr),
+      formatModeLabel(nullptr),
+      hideUnmatchedCheckBox(nullptr),
+      templateInfoLabel(nullptr),
       currentSearchIndex(-1),
       searchDebounceTimer(nullptr)
 {
@@ -202,62 +207,6 @@ void LogViewer::setupUI()
     timeGroupBox = new QGroupBox(tr("时间范围"), this);
     timeGroupBox->setLayout(timeLayout);
 
-    // Log level selection controls
-    levelGroupBox = new QGroupBox(tr("日志等级"), this);
-    QHBoxLayout* levelLayout = new QHBoxLayout();
-    levelGroupBox->setLayout(levelLayout);
-
-    // Create log level checkboxes with sorted order
-    QStringList levels = {"DEBUG", "ERROR", "INFO", "WARN"};
-    levels.sort(Qt::CaseInsensitive); // Sort alphabetically
-
-    for (const QString& level : levels) {
-        QCheckBox* checkBox = new QCheckBox(level, this);
-        checkBox->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-        levelCheckBoxes.append(checkBox);
-        levelLayout->addWidget(checkBox);
-    }
-
-    // Add flexible space for left alignment
-    levelLayout->addStretch();
-
-    // Module selection controls
-    moduleLayout = new QHBoxLayout();
-
-    // Add "Select All" and "Deselect All" buttons for module selection
-    selectAllModulesButton = new QPushButton(tr("全选"), this);
-    deselectAllModulesButton = new QPushButton(tr("全不选"), this);
-    connect(selectAllModulesButton, &QPushButton::clicked, this,
-            &LogViewer::selectAllModules);
-    connect(deselectAllModulesButton, &QPushButton::clicked, this,
-            &LogViewer::deselectAllModules);
-
-    QHBoxLayout* moduleButtonLayout = new QHBoxLayout();
-    moduleButtonLayout->addWidget(selectAllModulesButton);
-    moduleButtonLayout->addWidget(deselectAllModulesButton);
-    moduleButtonLayout->addStretch();
-
-    // Add scroll area to support cases with many modules
-    QScrollArea* moduleScrollArea = new QScrollArea(this);
-    QWidget* moduleContainer = new QWidget(this);
-    moduleLayout->setContentsMargins(5, 5, 5, 5);
-    moduleContainer->setLayout(moduleLayout);
-    moduleScrollArea->setWidgetResizable(true);
-    moduleScrollArea->setWidget(moduleContainer);
-
-    // Configure horizontal scrolling for module selection
-    moduleScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    moduleScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-
-    // Set fixed height to prevent vertical scrollbar
-    moduleScrollArea->setFixedHeight(60); // Adjust height as needed
-
-    moduleGroupBox = new QGroupBox(tr("模块选择"), this);
-    QVBoxLayout* moduleGroupLayout = new QVBoxLayout();
-    moduleGroupLayout->addLayout(moduleButtonLayout); // Add button layout
-    moduleGroupLayout->addWidget(moduleScrollArea);
-    moduleGroupBox->setLayout(moduleGroupLayout);
-
     // Encoding selection
     encodingLabel = new QLabel(tr("文件编码:"), this);
     encodingComboBox = new QComboBox(this);
@@ -281,8 +230,11 @@ void LogViewer::setupUI()
     // Combine filter area
     QVBoxLayout* filterAreaLayout = new QVBoxLayout();
     filterAreaLayout->addWidget(timeGroupBox);
-    filterAreaLayout->addWidget(levelGroupBox);
-    filterAreaLayout->addWidget(moduleGroupBox);
+
+    // Dynamic field filters container (populated by rebuildFieldFilterUI)
+    fieldFiltersLayout = new QVBoxLayout();
+
+    filterAreaLayout->addLayout(fieldFiltersLayout);
     filterAreaLayout->addLayout(encodingLayout);
     filterAreaLayout->addLayout(filterLayout);
     filterWidget->setLayout(filterAreaLayout);
@@ -391,6 +343,40 @@ void LogViewer::setupUI()
     connect(formatTemplateAction, &QAction::triggered, this,
             &LogViewer::onFormatTemplateAction);
 
+    // Format mode combo
+    formatModeLabel = new QLabel(tr("格式模式:"), this);
+    formatModeCombo = new QComboBox(this);
+    formatModeCombo->addItem(tr("自动识别"));        // index 0
+    const auto presetList = LogFormatTemplate::presets();
+    for (const auto& p : presetList) {
+        formatModeCombo->addItem(p.name);            // index 1..N
+    }
+    formatModeCombo->addItem(tr("自定义..."));       // last index
+    // Restore saved mode
+    int savedMode = AppSettings::instance().getFormatMode();
+    if (savedMode >= 0 && savedMode < formatModeCombo->count() - 1) {
+        formatModeCombo->setCurrentIndex(savedMode);
+    } else if (savedMode < 0) {
+        formatModeCombo->setCurrentIndex(formatModeCombo->count() - 1);
+    }
+    connect(formatModeCombo,
+            QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            &LogViewer::onFormatModeChanged);
+
+    toolBar->addWidget(formatModeLabel);
+    toolBar->addWidget(formatModeCombo);
+
+    // Hide unmatched lines checkbox
+    hideUnmatchedCheckBox = new QCheckBox(tr("显示不匹配行"), this);
+    hideUnmatchedCheckBox->setChecked(!AppSettings::instance().getHideUnmatched());
+    connect(hideUnmatchedCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        bool hide = !checked;
+        AppSettings::instance().setHideUnmatched(hide);
+        if (proxyModel)
+            proxyModel->setHideUnmatched(hide);
+    });
+    toolBar->addWidget(hideUnmatchedCheckBox);
+
     // Add separator
     toolBar->addSeparator();
 
@@ -424,6 +410,14 @@ void LogViewer::setupUI()
     toolBar->addWidget(languageComboBox);
 
     // Status bar
+    templateInfoLabel = new QLabel(this);
+    templateInfoLabel->setVisible(false);
+    templateInfoLabel->setStyleSheet(
+        "color: #555; padding: 2px 8px; font-size: 9pt;");
+    templateInfoLabel->setWordWrap(false);
+    templateInfoLabel->setMaximumWidth(600);
+    statusBar()->addPermanentWidget(templateInfoLabel);
+
     progressBar = new QProgressBar(this);
     progressBar->setVisible(false);
     statusBar()->addPermanentWidget(progressBar);
@@ -455,8 +449,10 @@ void LogViewer::setupUI()
     // Initialize models
     sourceModel = new LogTableModel(this);
     proxyModel = new LogFilterProxyModel(this);
+    proxyModel->setHideUnmatched(AppSettings::instance().getHideUnmatched());
     proxyModel->setSourceModel(sourceModel);
     logTreeView->setModel(proxyModel);
+    logTreeView->header()->setStretchLastSection(true);
     // Delegate for highlight on content column
     highlightDelegate = new HighlightDelegate(this);
     logTreeView->setItemDelegateForColumn(LogTableModel::ColumnMessage,
@@ -478,10 +474,29 @@ void LogViewer::openLogFile()
     }
 }
 
-void LogViewer::loadLogFile(const QString& filePath)
+void LogViewer::loadLogFile(const QString& filePath,
+                            const QString& formatTemplate)
 {
     currentFilePath = filePath;
     QString encoding = encodingComboBox->currentText();
+
+    // Determine effective template: explicit > formatMode setting
+    QString effectiveTemplate = formatTemplate;
+    if (effectiveTemplate.isEmpty()) {
+        int mode = AppSettings::instance().getFormatMode();
+        if (mode > 0) {
+            // Preset mode: get preset template by index (1-based)
+            const auto presets = LogFormatTemplate::presets();
+            int presetIdx = mode - 1;
+            if (presetIdx >= 0 && presetIdx < presets.size()) {
+                effectiveTemplate = presets[presetIdx].templateStr;
+            }
+        } else if (mode < 0) {
+            // Custom mode: use saved custom template
+            effectiveTemplate = AppSettings::instance().getLogFormatTemplate();
+        }
+        // mode == 0: auto-detect (pass empty)
+    }
 
     // Show progress bar
     progressBar->setVisible(true);
@@ -490,11 +505,24 @@ void LogViewer::loadLogFile(const QString& filePath)
 
     // Clear previous data
     sourceModel->clear();
+    // Reset dynamic columns from previous file
+    sourceModel->setExtraColumns(QStringList());
+    pendingExtraColumns.clear();
+    pendingExtraFieldValues.clear();
+    // Clear extra field filter UI
+    QLayoutItem* child;
+    while ((child = fieldFiltersLayout->takeAt(0)) != nullptr) {
+        QWidget* widget = child->widget();
+        if (widget)
+            widget->deleteLater();
+        delete child;
+    }
+    fieldCheckBoxes.clear();
 
-    // Background loader
+    // Background loader — auto-detect format by default.
+    // A saved template is only used when explicitly passed (e.g. from format dialog reload).
     QThread* thread = new QThread(this);
-    QString formatTemplate = AppSettings::instance().getLogFormatTemplate();
-    LogLoader* loader = new LogLoader(filePath, encoding, 5000, formatTemplate);
+    LogLoader* loader = new LogLoader(filePath, encoding, 5000, effectiveTemplate);
     loader->moveToThread(thread);
 
     connect(thread, &QThread::started, loader, &LogLoader::process);
@@ -503,11 +531,11 @@ void LogViewer::loadLogFile(const QString& filePath)
     connect(loader, &LogLoader::error, this, [this](const QString& msg) {
         QMessageBox::warning(this, tr("错误"), msg);
     });
-    // 发布构建下，加载期间冻结视图更新以减少重绘
-#ifdef NDEBUG
+    connect(loader, &LogLoader::detectInfoReady, this,
+            &LogViewer::updateTemplateInfo);
+    // 加载期间冻结视图更新以减少重绘
     logTreeView->setUpdatesEnabled(false);
     logTreeView->viewport()->setUpdatesEnabled(false);
-#endif
 
     connect(loader, &LogLoader::chunkReady, this,
             [this](QVector<LogEntry> chunk) {
@@ -515,41 +543,54 @@ void LogViewer::loadLogFile(const QString& filePath)
             });
     connect(loader, &LogLoader::summaryReady, this,
             [this](const QDateTime& minTime, const QDateTime& maxTime,
-                   const QStringList& modules, const QStringList& levels) {
+                   const QStringList& modules, const QStringList& levels,
+                   const QStringList& extraFieldNames,
+                   const QMap<QString, QStringList>& extraFieldValues) {
                 startTimeEdit->setDateTime(minTime);
                 endTimeEdit->setDateTime(maxTime);
-                allModules = modules;
-                allLevels = levels;
-                // Rebuild module checkboxes UI
-                QLayoutItem* child;
-                while ((child = moduleLayout->takeAt(0)) != nullptr) {
-                    QWidget* widget = child->widget();
-                    if (widget)
-                        widget->deleteLater();
-                    delete child;
+
+                // Merge level, module, and extra fields into unified field data
+                // (level/module are already fixed columns, only add to filter values)
+                QStringList allFieldNames = extraFieldNames;
+                QMap<QString, QStringList> allFieldValues = extraFieldValues;
+
+                if (!levels.isEmpty()) {
+                    allFieldValues[QStringLiteral("level")] = levels;
                 }
-                moduleCheckBoxes.clear();
-                for (const QString& module : allModules) {
-                    QCheckBox* checkBox = new QCheckBox(module, this);
-                    checkBox->setSizePolicy(QSizePolicy::Preferred,
-                                            QSizePolicy::Preferred);
-                    moduleCheckBoxes.append(checkBox);
-                    moduleLayout->addWidget(checkBox);
+                if (!modules.isEmpty()) {
+                    allFieldValues[QStringLiteral("module")] = modules;
                 }
-                moduleLayout->addStretch();
-                for (QCheckBox* checkBox : levelCheckBoxes)
-                    checkBox->setChecked(true);
-                for (QCheckBox* checkBox : moduleCheckBoxes)
-                    checkBox->setChecked(true);
+
+                // Store for use in finished handler
+                pendingExtraColumns = allFieldNames;
+                pendingExtraFieldValues = allFieldValues;
             });
     connect(loader, &LogLoader::finished, this,
             [this, loader, thread, filePath]() {
-    // 发布构建下，加载结束后恢复视图更新并进行一次性刷新
-#ifdef NDEBUG
+                // 恢复视图更新并进行一次性刷新
                 logTreeView->setUpdatesEnabled(true);
                 logTreeView->viewport()->setUpdatesEnabled(true);
+
+                // Apply extra columns after view is re-enabled (triggers model reset)
+                sourceModel->setExtraColumns(pendingExtraColumns);
+
+                // Build filter field names: level/module (fixed columns) + extra fields
+                QStringList filterFieldNames;
+                if (pendingExtraFieldValues.contains(QStringLiteral("level")))
+                    filterFieldNames.append(QStringLiteral("level"));
+                if (pendingExtraFieldValues.contains(QStringLiteral("module")))
+                    filterFieldNames.append(QStringLiteral("module"));
+                filterFieldNames.append(pendingExtraColumns);
+                rebuildFieldFilterUI(filterFieldNames, pendingExtraFieldValues);
+
+                // Move message column to rightmost (it has the most content)
+                QHeaderView* hdr = logTreeView->header();
+                int msgVis = hdr->visualIndex(LogTableModel::ColumnMessage);
+                int lastVis = hdr->count() - 1;
+                if (msgVis != lastVis)
+                    hdr->moveSection(msgVis, lastVis);
+
                 logTreeView->viewport()->update();
-#endif
 
                 progressBar->setVisible(false);
                 exportAction->setEnabled(true);
@@ -575,22 +616,21 @@ void LogViewer::onFilterButtonClicked()
 
     QDateTime startTime = startTimeEdit->dateTime();
     QDateTime endTime = endTimeEdit->dateTime();
+
+    // Read level and module from unified fieldCheckBoxes
     QStringList selectedLevels;
-    for (QCheckBox* checkBox : levelCheckBoxes) {
-        if (checkBox->isChecked()) {
-            selectedLevels.append(checkBox->text());
+    if (fieldCheckBoxes.contains(QStringLiteral("level"))) {
+        for (QCheckBox* cb : fieldCheckBoxes[QStringLiteral("level")]) {
+            if (cb->isChecked())
+                selectedLevels.append(cb->text());
         }
     }
     QStringList selectedModules;
-    for (QCheckBox* checkBox : moduleCheckBoxes) {
-        if (checkBox->isChecked()) {
-            selectedModules.append(checkBox->text());
+    if (fieldCheckBoxes.contains(QStringLiteral("module"))) {
+        for (QCheckBox* cb : fieldCheckBoxes[QStringLiteral("module")]) {
+            if (cb->isChecked())
+                selectedModules.append(cb->text());
         }
-    }
-    if (selectedLevels.isEmpty() || selectedModules.isEmpty()) {
-        QMessageBox::warning(this, tr("错误"),
-                             tr("请至少选择一个日志等级和模块。"));
-        return;
     }
 
     // Show progress bar
@@ -599,8 +639,29 @@ void LogViewer::onFilterButtonClicked()
 
     if (proxyModel) {
         proxyModel->setTimeRange(startTime, endTime);
-        proxyModel->setLevels(selectedLevels);
-        proxyModel->setModules(selectedModules);
+        // Only activate level/module filter when checkboxes exist for that field
+        if (fieldCheckBoxes.contains(QStringLiteral("level")))
+            proxyModel->setLevels(selectedLevels);
+        if (fieldCheckBoxes.contains(QStringLiteral("module")))
+            proxyModel->setModules(selectedModules);
+
+        // Apply extra field filters (level and module already handled above)
+        proxyModel->clearExtraFieldFilters();
+        for (auto it = fieldCheckBoxes.constBegin();
+             it != fieldCheckBoxes.constEnd(); ++it) {
+            if (it.key() == QStringLiteral("level") ||
+                it.key() == QStringLiteral("module"))
+                continue;
+            QSet<QString> accepted;
+            for (QCheckBox* cb : it.value()) {
+                if (cb->isChecked()) {
+                    accepted.insert(cb->text());
+                }
+            }
+            if (accepted.size() < it.value().size()) {
+                proxyModel->setExtraFieldFilter(it.key(), accepted);
+            }
+        }
     }
 
     // Hide progress bar after filtering is complete
@@ -608,6 +669,87 @@ void LogViewer::onFilterButtonClicked()
 
     statusBar()->showMessage(tr("筛选完成，日志条目数：%1")
                                  .arg(proxyModel ? proxyModel->rowCount() : 0));
+}
+
+void LogViewer::rebuildFieldFilterUI(
+    const QStringList& fieldNames,
+    const QMap<QString, QStringList>& fieldValues)
+{
+    // Clear existing field filter UI
+    QLayoutItem* child;
+    while ((child = fieldFiltersLayout->takeAt(0)) != nullptr) {
+        QWidget* widget = child->widget();
+        if (widget)
+            widget->deleteLater();
+        delete child;
+    }
+    fieldCheckBoxes.clear();
+
+    // Create a GroupBox for each field
+    for (const QString& fieldName : fieldNames) {
+        QStringList values = fieldValues.value(fieldName);
+        if (values.isEmpty())
+            continue;
+
+        QGroupBox* groupBox = new QGroupBox(fieldName, this);
+        QVBoxLayout* groupLayout = new QVBoxLayout();
+
+        // Select All / Deselect All buttons
+        QHBoxLayout* buttonLayout = new QHBoxLayout();
+        QPushButton* selectAllBtn = new QPushButton(tr("全选"), this);
+        QPushButton* deselectAllBtn = new QPushButton(tr("取消全选"), this);
+        selectAllBtn->setFixedHeight(24);
+        deselectAllBtn->setFixedHeight(24);
+        buttonLayout->addWidget(selectAllBtn);
+        buttonLayout->addWidget(deselectAllBtn);
+        buttonLayout->addStretch();
+        groupLayout->addLayout(buttonLayout);
+
+        // For fields with many values, use a scroll area
+        bool useScrollArea = (values.size() > 8);
+
+        QHBoxLayout* checkBoxLayout = new QHBoxLayout();
+        QList<QCheckBox*> checkBoxes;
+
+        for (const QString& value : values) {
+            QCheckBox* cb = new QCheckBox(value, this);
+            cb->setChecked(true);
+            cb->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+            checkBoxes.append(cb);
+            checkBoxLayout->addWidget(cb);
+        }
+        checkBoxLayout->addStretch();
+
+        if (useScrollArea) {
+            QWidget* container = new QWidget(this);
+            container->setLayout(checkBoxLayout);
+            QScrollArea* scrollArea = new QScrollArea(this);
+            scrollArea->setWidgetResizable(true);
+            scrollArea->setWidget(container);
+            scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+            scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+            scrollArea->setFixedHeight(60);
+            groupLayout->addWidget(scrollArea);
+        } else {
+            groupLayout->addLayout(checkBoxLayout);
+        }
+
+        // Connect select all / deselect all buttons
+        connect(selectAllBtn, &QPushButton::clicked, this,
+                [checkBoxes]() {
+                    for (QCheckBox* cb : checkBoxes)
+                        cb->setChecked(true);
+                });
+        connect(deselectAllBtn, &QPushButton::clicked, this,
+                [checkBoxes]() {
+                    for (QCheckBox* cb : checkBoxes)
+                        cb->setChecked(false);
+                });
+
+        groupBox->setLayout(groupLayout);
+        fieldFiltersLayout->addWidget(groupBox);
+        fieldCheckBoxes[fieldName] = checkBoxes;
+    }
 }
 
 void LogViewer::toggleFilterArea()
@@ -618,20 +760,6 @@ void LogViewer::toggleFilterArea()
     } else {
         filterWidget->show();
         toggleFilterAction->setText(tr("隐藏筛选区域"));
-    }
-}
-
-void LogViewer::selectAllModules()
-{
-    for (QCheckBox* checkBox : moduleCheckBoxes) {
-        checkBox->setChecked(true);
-    }
-}
-
-void LogViewer::deselectAllModules()
-{
-    for (QCheckBox* checkBox : moduleCheckBoxes) {
-        checkBox->setChecked(false);
     }
 }
 
@@ -903,16 +1031,55 @@ void LogViewer::onFormatTemplateAction()
     if (dialog.exec() == QDialog::Accepted) {
         QString newTemplate = dialog.getTemplate();
         AppSettings::instance().setLogFormatTemplate(newTemplate);
+        // Switch combo to "Custom" (last item)
+        formatModeCombo->blockSignals(true);
+        formatModeCombo->setCurrentIndex(formatModeCombo->count() - 1);
+        formatModeCombo->blockSignals(false);
+        AppSettings::instance().setFormatMode(-1);
         // If a file is already loaded, offer to reload with new format
         if (!currentFilePath.isEmpty()) {
             QMessageBox::StandardButton reply = QMessageBox::question(
                 this, tr("Reload"),
                 tr("Format changed. Reload the current file with the new format?"));
             if (reply == QMessageBox::Yes) {
-                loadLogFile(currentFilePath);
+                loadLogFile(currentFilePath, newTemplate);
             }
         }
     }
+}
+
+void LogViewer::onFormatModeChanged(int index)
+{
+    int lastIndex = formatModeCombo->count() - 1;
+    if (index == lastIndex) {
+        // "Custom..." selected — open format template dialog
+        AppSettings::instance().setFormatMode(-1);
+        onFormatTemplateAction();
+        return;
+    }
+
+    // Save mode: 0=auto, 1+=preset index
+    AppSettings::instance().setFormatMode(index);
+
+    // Reload current file with new mode if a file is loaded
+    if (!currentFilePath.isEmpty()) {
+        loadLogFile(currentFilePath);
+    }
+}
+
+void LogViewer::updateTemplateInfo(const QString& tmpl, const QString& reason)
+{
+    if (tmpl.isEmpty()) {
+        templateInfoLabel->setVisible(false);
+        return;
+    }
+    QString text = tr("模板: %1").arg(tmpl);
+    if (!reason.isEmpty()) {
+        text += QStringLiteral(" | %1").arg(reason);
+    }
+    templateInfoLabel->setText(text);
+    templateInfoLabel->setVisible(true);
+    templateInfoLabel->setToolTip(text);
 }
 
 QList<LogEntry> LogViewer::getCurrentFilteredLogs() const
@@ -1035,28 +1202,7 @@ void LogViewer::retranslateUI()
                  << timeGroupBox->title();
 #endif
     }
-    if (levelGroupBox) {
-        QString oldTitle = levelGroupBox->title();
-        levelGroupBox->setTitle(tr("日志等级"));
-#ifdef LOG_DEBUG_ENABLED
-        qDebug() << "Level group title changed from" << oldTitle << "to"
-                 << levelGroupBox->title();
-#endif
-    }
-    if (moduleGroupBox) {
-        QString oldTitle = moduleGroupBox->title();
-        moduleGroupBox->setTitle(tr("模块选择"));
-#ifdef LOG_DEBUG_ENABLED
-        qDebug() << "Module group title changed from" << oldTitle << "to"
-                 << moduleGroupBox->title();
-#endif
-    }
-
     // Re-set button text
-    if (selectAllModulesButton)
-        selectAllModulesButton->setText(tr("全选"));
-    if (deselectAllModulesButton)
-        deselectAllModulesButton->setText(tr("全不选"));
     if (searchPreviousButton)
         searchPreviousButton->setText(tr("上一条"));
     if (searchNextButton)
@@ -1077,6 +1223,26 @@ void LogViewer::retranslateUI()
         encodingLabel->setText(tr("文件编码:"));
     if (languageLabel)
         languageLabel->setText(tr("语言:"));
+    if (formatModeLabel)
+        formatModeLabel->setText(tr("格式模式:"));
+    if (hideUnmatchedCheckBox)
+        hideUnmatchedCheckBox->setText(tr("显示不匹配行"));
+    // Update format mode combo items (presets may have translations)
+    if (formatModeCombo) {
+        formatModeCombo->blockSignals(true);
+        int savedIndex = formatModeCombo->currentIndex();
+        formatModeCombo->clear();
+        formatModeCombo->addItem(tr("自动识别"));
+        const auto presetList = LogFormatTemplate::presets();
+        for (const auto& p : presetList) {
+            formatModeCombo->addItem(p.name);
+        }
+        formatModeCombo->addItem(tr("自定义..."));
+        if (savedIndex >= 0 && savedIndex < formatModeCombo->count()) {
+            formatModeCombo->setCurrentIndex(savedIndex);
+        }
+        formatModeCombo->blockSignals(false);
+    }
 
     // Re-set table headers (via view header, since we use custom model)
     if (logTreeView && logTreeView->header()) {

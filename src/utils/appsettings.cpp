@@ -24,6 +24,8 @@ const QString AppSettings::KEY_INCLUDE_MODULE = "export/includeModule";
 const QString AppSettings::KEY_INCLUDE_CONTENT = "export/includeContent";
 const QString AppSettings::KEY_LANGUAGE = "ui/language";
 const QString AppSettings::KEY_LOG_FORMAT_TEMPLATE = "log/formatTemplate";
+const QString AppSettings::KEY_FORMAT_MODE = "log/formatMode";
+const QString AppSettings::KEY_HIDE_UNMATCHED = "log/hideUnmatched";
 
 AppSettings& AppSettings::instance()
 {
@@ -140,4 +142,26 @@ QString AppSettings::getLogFormatTemplate() const
 {
     // 空字符串表示自动识别
     return settings->value(KEY_LOG_FORMAT_TEMPLATE, QString()).toString();
+}
+
+void AppSettings::setFormatMode(int mode)
+{
+    settings->setValue(KEY_FORMAT_MODE, mode);
+}
+
+int AppSettings::getFormatMode() const
+{
+    // 0 = 自动识别 (默认)
+    return settings->value(KEY_FORMAT_MODE, 0).toInt();
+}
+
+void AppSettings::setHideUnmatched(bool hide)
+{
+    settings->setValue(KEY_HIDE_UNMATCHED, hide);
+}
+
+bool AppSettings::getHideUnmatched() const
+{
+    // 默认显示所有行（不隐藏）
+    return settings->value(KEY_HIDE_UNMATCHED, false).toBool();
 }

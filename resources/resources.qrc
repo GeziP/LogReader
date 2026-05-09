@@ -6,6 +6,7 @@
         <file>icons/filter.png</file>
         <file>icons/toggle.png</file>
         <file>icons/export.png</file>
+        <file>icons/template.png</file>
     </qresource>
 
 </RCC>

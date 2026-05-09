@@ -24,8 +24,8 @@ void HighlightDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opt
     QStyleOptionViewItem opt(option);
     initStyleOption(&opt, index);
 
-    // Only highlight on the content column (last column)
-    if (m_text.isEmpty() || index.column() != index.model()->columnCount() - 1) {
+    // Only highlight on the message column (fixed index 4)
+    if (m_text.isEmpty() || index.column() != 4) {
         QStyledItemDelegate::paint(painter, opt, index);
         return;
     }

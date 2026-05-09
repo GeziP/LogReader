@@ -3,6 +3,7 @@
 
 #include <QDateTime>
 #include <QList>
+#include <QMap>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -31,7 +32,10 @@ signals:
     void chunkReady(QVector<LogEntry> chunk);
     void progress(int percentage);
     void summaryReady(const QDateTime& minTime, const QDateTime& maxTime,
-                      const QStringList& modules, const QStringList& levels);
+                      const QStringList& modules, const QStringList& levels,
+                      const QStringList& extraFieldNames,
+                      const QMap<QString, QStringList>& extraFieldValues);
+    void detectInfoReady(const QString& templateStr, const QString& reason);
     void finished();
     void error(const QString& message);
 

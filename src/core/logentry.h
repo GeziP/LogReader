@@ -14,6 +14,7 @@
 #define LOGENTRY_H
 
 #include <QDateTime>
+#include <QMap>
 #include <QMetaType>
 #include <QString>
 
@@ -75,10 +76,17 @@ struct LogEntry
      */
     QString message;
 
+    QMap<QString, QString> extraFields;
+
+    QString rawLine;   // 原始行文本（未匹配时用于显示）
+    bool matched = true; // 是否匹配模板
+
     bool operator==(const LogEntry& other) const
     {
         return timestamp == other.timestamp && level == other.level &&
-               module == other.module && message == other.message;
+               module == other.module && message == other.message &&
+               extraFields == other.extraFields && rawLine == other.rawLine &&
+               matched == other.matched;
     }
 };
 

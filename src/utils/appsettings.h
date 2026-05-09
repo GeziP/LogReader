@@ -89,6 +89,14 @@ public:
     void setLogFormatTemplate(const QString& formatTemplate);
     QString getLogFormatTemplate() const;
 
+    // 格式模式：0=自动识别, 1+=预设索引, -1=自定义
+    void setFormatMode(int mode);
+    int getFormatMode() const;
+
+    // 隐藏不匹配格式的行
+    void setHideUnmatched(bool hide);
+    bool getHideUnmatched() const;
+
 private:
     /**
      * @brief Private constructor for singleton pattern
@@ -121,6 +129,8 @@ private:
     static const QString
         KEY_LANGUAGE; ///< Configuration key for language preference
     static const QString KEY_LOG_FORMAT_TEMPLATE;
+    static const QString KEY_FORMAT_MODE;
+    static const QString KEY_HIDE_UNMATCHED;
 };
 
 #endif // APPSETTINGS_H

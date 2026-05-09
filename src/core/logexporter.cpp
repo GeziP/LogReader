@@ -20,6 +20,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSet>
 #include <QTextStream>
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QTextCodec>
@@ -218,8 +219,12 @@ bool LogExporter::exportToTxt(const QList<LogEntry>& logs,
     // Write each log entry as a formatted line
     for (int i = 0; i < logs.size(); ++i) {
         const LogEntry& entry = logs[i];
-        QString line = formatLogEntry(entry, config, ExportConfig::TXT);
-        out << line << "\n";
+        if (!entry.matched) {
+            out << entry.rawLine << "\n";
+        } else {
+            QString line = formatLogEntry(entry, config, ExportConfig::TXT);
+            out << line << "\n";
+        }
 
         if (i % 1000 == 0 || i == logs.size() - 1)
             emitProgress(i + 1, logs.size());
@@ -272,13 +277,34 @@ bool LogExporter::exportToCsv(const QList<LogEntry>& logs,
     if (config.includeContent)
         headers << QObject::tr("内容");
 
+    // Collect extra field names from all entries
+    QSet<QString> extraFieldNameSet;
+    for (const LogEntry& entry : logs) {
+        for (auto it = entry.extraFields.constBegin();
+             it != entry.extraFields.constEnd(); ++it) {
+            extraFieldNameSet.insert(it.key());
+        }
+    }
+    QStringList extraFieldNames(extraFieldNameSet.constBegin(), extraFieldNameSet.constEnd());
+    extraFieldNames.sort();
+    headers << extraFieldNames;
+
     out << headers.join(",") << "\n";
 
     // Write each log entry as a CSV row
+    int totalColumns = headers.size();
     for (int i = 0; i < logs.size(); ++i) {
         const LogEntry& entry = logs[i];
-        QString line = formatLogEntry(entry, config, ExportConfig::CSV);
-        out << line << "\n";
+        if (!entry.matched) {
+            // Unmatched line: rawLine in first column, rest empty
+            out << escapeForCsv(entry.rawLine);
+            for (int c = 1; c < totalColumns; ++c)
+                out << ",";
+            out << "\n";
+        } else {
+            QString line = formatLogEntry(entry, config, ExportConfig::CSV, extraFieldNames);
+            out << line << "\n";
+        }
 
         if (i % 1000 == 0 || i == logs.size() - 1)
             emitProgress(i + 1, logs.size());
@@ -337,26 +363,36 @@ bool LogExporter::exportToJson(const QList<LogEntry>& logs,
             return json.mid(1, json.size() - 2); // strip [ and ]
         };
 
-        bool first = true;
-        auto writeField = [&](const QString& key, const QString& value) {
-            if (!first)
-                out << ",\n";
-            first = false;
-            out << "    " << jsonEscape(key) << ": " << jsonEscape(value);
-        };
+        if (!entry.matched) {
+            out << "    " << jsonEscape("raw") << ": " << jsonEscape(entry.rawLine);
+        } else {
+            bool first = true;
+            auto writeField = [&](const QString& key, const QString& value) {
+                if (!first)
+                    out << ",\n";
+                first = false;
+                out << "    " << jsonEscape(key) << ": " << jsonEscape(value);
+            };
 
-        if (config.includeTimestamp) {
-            writeField("timestamp",
-                       entry.timestamp.toString("yyyy-MM-dd HH:mm:ss.zzz"));
-        }
-        if (config.includeLevel) {
-            writeField("level", entry.level);
-        }
-        if (config.includeModule) {
-            writeField("module", entry.module);
-        }
-        if (config.includeContent) {
-            writeField("content", entry.message);
+            if (config.includeTimestamp) {
+                writeField("timestamp",
+                           entry.timestamp.toString("yyyy-MM-dd HH:mm:ss.zzz"));
+            }
+            if (config.includeLevel) {
+                writeField("level", entry.level);
+            }
+            if (config.includeModule) {
+                writeField("module", entry.module);
+            }
+            if (config.includeContent) {
+                writeField("content", entry.message);
+            }
+
+            // Add extra fields
+            for (auto it = entry.extraFields.constBegin();
+                 it != entry.extraFields.constEnd(); ++it) {
+                writeField(it.key(), it.value());
+            }
         }
 
         out << "\n  }";
@@ -386,7 +422,8 @@ bool LogExporter::exportToJson(const QList<LogEntry>& logs,
  */
 QString LogExporter::formatLogEntry(const LogEntry& entry,
                                     const ExportConfig& config,
-                                    ExportConfig::Format format)
+                                    ExportConfig::Format format,
+                                    const QStringList& extraFieldNames)
 {
     QStringList fields;
 
@@ -420,6 +457,18 @@ QString LogExporter::formatLogEntry(const LogEntry& entry,
             content = escapeForCsv(content);
         }
         fields << content;
+    }
+
+    // Add extra fields (use known field names for consistent column count)
+    const QStringList& names = extraFieldNames.isEmpty()
+        ? QStringList(entry.extraFields.keys())
+        : extraFieldNames;
+    for (const QString& name : names) {
+        QString value = entry.extraFields.value(name);
+        if (format == ExportConfig::CSV) {
+            value = escapeForCsv(value);
+        }
+        fields << value;
     }
 
     // Join fields with appropriate separator

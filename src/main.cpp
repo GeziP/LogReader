@@ -70,6 +70,7 @@ int main(int argc, char* argv[])
     // Register metatypes for cross-thread signal-slot connections
     qRegisterMetaType<LogEntry>("LogEntry");
     qRegisterMetaType<QVector<LogEntry>>("QVector<LogEntry>");
+    qRegisterMetaType<QMap<QString, QStringList>>("QMap<QString,QStringList>");
 
     // Initialize language management system
     LanguageManager::instance().initialize();
