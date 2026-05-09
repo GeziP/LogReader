@@ -16,7 +16,7 @@ const QStringList LogFormatTemplate::KNOWN_FIELDS = {
 // Common log level names
 static const QSet<QString> LOG_LEVELS = {
     "TRACE", "DEBUG", "INFO", "WARN", "WARNING", "ERROR", "FATAL", "SEVERE",
-    "START", "END", "EMIT", "WAIT", "READY", "PASS", "FAIL"
+    "START", "END", "EMIT", "WAIT", "READY", "PASS", "FAIL", "FAULT"
 };
 
 // Timestamp patterns
@@ -99,6 +99,7 @@ void LogFormatTemplate::compile()
     int captureCount = 0;
     int i = 0;
     const int len = m_template.length();
+    bool prevWasPlaceholder = false;
 
     while (i < len) {
         QChar ch = m_template[i];
@@ -108,6 +109,7 @@ void LogFormatTemplate::compile()
             QChar next = m_template[i + 1];
             if (next == '{' || next == '}' || next == '\\') {
                 regexStr += QRegularExpression::escape(QString(next));
+                prevWasPlaceholder = false;
                 i += 2;
                 continue;
             }
@@ -168,12 +170,34 @@ void LogFormatTemplate::compile()
                 }
             }
 
+            prevWasPlaceholder = true;
             i = closeBrace + 1;
+            continue;
+        }
+
+        // Handle whitespace: use \s+ between placeholders for flexible spacing
+        if (ch.isSpace()) {
+            // Collect the run of whitespace
+            int spaceStart = i;
+            while (i < len && m_template[i].isSpace())
+                i++;
+
+            // Check if next non-space char starts a placeholder
+            bool nextIsPlaceholder = (i < len && m_template[i] == '{');
+
+            if (prevWasPlaceholder && nextIsPlaceholder) {
+                // Between two placeholders: use \s+ for flexible matching
+                regexStr += QStringLiteral("\\s+");
+            } else {
+                // Literal whitespace: preserve as-is
+                regexStr += QRegularExpression::escape(m_template.mid(spaceStart, i - spaceStart));
+            }
             continue;
         }
 
         // Literal character: escape for regex
         regexStr += QRegularExpression::escape(QString(ch));
+        prevWasPlaceholder = false;
         i++;
     }
 
@@ -195,20 +219,28 @@ void LogFormatTemplate::compile()
 
 LogFormatTemplate LogFormatTemplate::detect(const QStringList& sampleLines)
 {
+    return LogFormatTemplate(detectWithInfo(sampleLines).templateStr);
+}
+
+LogFormatTemplate::DetectInfo LogFormatTemplate::detectWithInfo(const QStringList& sampleLines)
+{
+    DetectInfo info;
     if (sampleLines.isEmpty()) {
-        return LogFormatTemplate();
+        info.reason = QStringLiteral("无样本行");
+        return info;
     }
 
     int threshold = qMax(1, sampleLines.size() / 5);
+    int totalLines = sampleLines.size();
 
-    // Step 1: Smart analysis - detect field positions dynamically
+    // Step 1: Smart analysis - detect field positions dynamically.
     QString smartTemplate = analyzeLineStructure(sampleLines);
     int smartMatchCount = 0;
-    bool smartHasExtraFields = false;
+    int smartFieldCount = 0;
     if (!smartTemplate.isEmpty()) {
         LogFormatTemplate fmt(smartTemplate);
         if (fmt.isValid()) {
-            smartHasExtraFields = !fmt.extraFieldNames().isEmpty();
+            smartFieldCount = fmt.allFieldNames().size();
             for (const QString& line : sampleLines) {
                 if (fmt.regex().match(line).hasMatch()) {
                     smartMatchCount++;
@@ -217,7 +249,9 @@ LogFormatTemplate LogFormatTemplate::detect(const QStringList& sampleLines)
         }
     }
 
-    // Step 2: Try preset templates
+    // Step 2: Find best preset (for fallback comparison)
+    static const QRegularExpression tsValidation(
+        R"(\d{4}[-/]\d{2}[-/]\d{2})");
     const auto presetList = presets();
     int bestPresetIndex = -1;
     int bestPresetCount = 0;
@@ -227,11 +261,18 @@ LogFormatTemplate LogFormatTemplate::detect(const QStringList& sampleLines)
         if (!fmt.isValid())
             continue;
 
+        int tsIdx = fmt.captureIndex("timestamp");
         int matchCount = 0;
         for (const QString& line : sampleLines) {
-            if (fmt.regex().match(line).hasMatch()) {
-                matchCount++;
+            QRegularExpressionMatch m = fmt.regex().match(line);
+            if (!m.hasMatch())
+                continue;
+            if (tsIdx >= 0) {
+                QString ts = m.captured(tsIdx).trimmed();
+                if (!tsValidation.match(ts).hasMatch())
+                    continue;
             }
+            matchCount++;
         }
 
         if (matchCount > bestPresetCount) {
@@ -240,54 +281,98 @@ LogFormatTemplate LogFormatTemplate::detect(const QStringList& sampleLines)
         }
     }
 
-    // Step 3: Choose between smart analysis and presets
-    // Prefer presets when they match equally well (they have proper field names)
-    // Only prefer smart analysis when it has extra fields AND matches significantly better
+    // Step 3: Choose the best template.
+    if (smartMatchCount >= threshold && smartFieldCount > 0) {
+        int presetFieldCount = (bestPresetIndex >= 0)
+            ? LogFormatTemplate(presetList[bestPresetIndex].templateStr).allFieldNames().size()
+            : 0;
+
+        if (smartFieldCount > presetFieldCount) {
+            info.templateStr = smartTemplate;
+            int extra = smartFieldCount - 4; // subtract known fields
+            info.reason = QStringLiteral("智能检测: %1个字段, 匹配%2/%3行")
+                              .arg(smartFieldCount)
+                              .arg(smartMatchCount)
+                              .arg(totalLines);
+            if (extra > 0)
+                info.reason += QStringLiteral(", 含%1个自定义字段").arg(extra);
+            return info;
+        }
+        if (smartFieldCount == presetFieldCount && bestPresetIndex >= 0
+            && bestPresetCount >= threshold) {
+            info.templateStr = presetList[bestPresetIndex].templateStr;
+            info.reason = QStringLiteral("使用预设'%1', 匹配%2/%3行")
+                              .arg(presetList[bestPresetIndex].name)
+                              .arg(bestPresetCount)
+                              .arg(totalLines);
+            return info;
+        }
+        info.templateStr = smartTemplate;
+        info.reason = QStringLiteral("智能检测: %1个字段, 匹配%2/%3行")
+                          .arg(smartFieldCount)
+                          .arg(smartMatchCount)
+                          .arg(totalLines);
+        return info;
+    }
+
+    // Step 4: Smart didn't work — use best preset
     if (bestPresetIndex >= 0 && bestPresetCount >= threshold) {
-        if (smartHasExtraFields && smartMatchCount >= bestPresetCount) {
-            return LogFormatTemplate(smartTemplate);
-        }
-        return LogFormatTemplate(presetList[bestPresetIndex].templateStr);
+        info.templateStr = presetList[bestPresetIndex].templateStr;
+        info.reason = QStringLiteral("使用预设'%1', 匹配%2/%3行")
+                          .arg(presetList[bestPresetIndex].name)
+                          .arg(bestPresetCount)
+                          .arg(totalLines);
+        return info;
     }
 
-    // Step 4: Use smart template even without preset match
-    if (!smartTemplate.isEmpty()) {
-        LogFormatTemplate fmt(smartTemplate);
-        if (fmt.isValid()) {
-            int matchCount = 0;
-            for (const QString& line : sampleLines) {
-                if (fmt.regex().match(line).hasMatch()) {
-                    matchCount++;
-                }
-            }
-            if (matchCount >= threshold) {
-                return fmt;
-            }
-        }
-    }
-
-    // Step 5: Fallback - timestamp only
+    // Step 5: Fallback - timestamp only (with validation)
     LogFormatTemplate fallback(QStringLiteral("[{timestamp}] {message}"));
+    int fbTsIdx = fallback.captureIndex("timestamp");
     int fallbackCount = 0;
     for (const QString& line : sampleLines) {
-        if (fallback.regex().match(line).hasMatch()) {
-            fallbackCount++;
+        QRegularExpressionMatch m = fallback.regex().match(line);
+        if (!m.hasMatch())
+            continue;
+        if (fbTsIdx >= 0) {
+            QString ts = m.captured(fbTsIdx).trimmed();
+            if (!tsValidation.match(ts).hasMatch())
+                continue;
         }
+        fallbackCount++;
     }
     if (fallbackCount >= threshold) {
-        return fallback;
+        info.templateStr = QStringLiteral("[{timestamp}] {message}");
+        info.reason = QStringLiteral("回退: 仅检测到时间戳, 匹配%1/%2行")
+                          .arg(fallbackCount)
+                          .arg(totalLines);
+        return info;
     }
 
-    return LogFormatTemplate();
+    info.reason = QStringLiteral("无法识别日志格式");
+    return info;
 }
 
 QString LogFormatTemplate::analyzeLineStructure(const QStringList& lines)
 {
-    // Find lines that look like actual log entries (with timestamp)
+    // Find lines that look like actual log entries (with timestamp),
+    // skipping separator/banner lines (e.g. "===...", "---...")
     QStringList logLines;
     for (const QString& line : lines) {
         if (TS_BRACKETED.match(line).hasMatch() || TS_BARE.match(line).hasMatch()) {
-            logLines.append(line);
+            // Skip separator lines: content after timestamp has no letters
+            QRegularExpressionMatch tsMatch = TS_BRACKETED.match(line);
+            if (!tsMatch.hasMatch())
+                tsMatch = TS_BARE.match(line);
+            QString afterTs = line.mid(tsMatch.capturedEnd()).trimmed();
+            bool hasLetter = false;
+            for (const QChar& c : afterTs) {
+                if (c.isLetter()) {
+                    hasLetter = true;
+                    break;
+                }
+            }
+            if (hasLetter)
+                logLines.append(line);
         }
     }
 
@@ -435,13 +520,14 @@ QString LogFormatTemplate::analyzeLineStructure(const QStringList& lines)
     // Add remaining words as fields (before key=value part)
     if (consistentWordsBeforeKV > analyzeCount / 2) {
         int startWord = hasBareLevel && levelPlaced ? 1 : 0;
+        // First word after level is typically the module/task ID
+        if (startWord < wordsBeforeKV) {
+            templateStr += " {module}";
+            startWord++;
+        }
         for (int wi = startWord; wi < wordsBeforeKV; ++wi) {
             templateStr += QString(" {field%1}").arg(extraFieldIdx);
             extraFieldIdx++;
-        }
-    } else if (!remainingWords.isEmpty()) {
-        if (remainingWords.size() >= 2) {
-            templateStr += " {module}";
         }
     }
 

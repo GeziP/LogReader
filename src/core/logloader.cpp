@@ -62,9 +62,13 @@ void LogLoader::process()
             sampleLines.append(in.readLine());
         }
         in.seek(startPos);
-        fmt = LogFormatTemplate::detect(sampleLines);
+        LogFormatTemplate::DetectInfo detectInfo =
+            LogFormatTemplate::detectWithInfo(sampleLines);
+        fmt = LogFormatTemplate(detectInfo.templateStr);
+        emit detectInfoReady(detectInfo.templateStr, detectInfo.reason);
     } else {
         fmt = LogFormatTemplate(m_formatTemplate);
+        emit detectInfoReady(m_formatTemplate, QString());
     }
 
     if (!fmt.isValid()) {
@@ -78,12 +82,26 @@ void LogLoader::process()
     QVector<LogEntry> buffer;
     buffer.reserve(m_chunkSize);
 
+    // Cache capture indices outside the loop
+    int tsIdx = fmt.captureIndex("timestamp");
+    int lvIdx = fmt.captureIndex("level");
+    int modIdx = fmt.captureIndex("module");
+    int msgIdx = fmt.captureIndex("message");
+    QStringList extraFieldNames = fmt.extraFieldNames();
+    QVector<int> extraIdxList;
+    extraIdxList.reserve(extraFieldNames.size());
+    for (const QString& fn : extraFieldNames) {
+        extraIdxList.append(fmt.captureIndex(fn));
+    }
+
+    // Detect timestamp format once
+    bool tryMsFormat = true;
+
     bool hasTime = false;
     QDateTime minTime;
     QDateTime maxTime;
     QSet<QString> modulesSet;
     QSet<QString> levelsSet;
-    QStringList extraFieldNames = fmt.extraFieldNames();
     QMap<QString, QSet<QString>> extraFieldSets;
 
     qint64 totalBytes = file.size();
@@ -100,19 +118,19 @@ void LogLoader::process()
         QRegularExpressionMatch match = regex.match(line);
         if (match.hasMatch()) {
             LogEntry entry;
-            int tsIdx = fmt.captureIndex("timestamp");
-            int lvIdx = fmt.captureIndex("level");
-            int modIdx = fmt.captureIndex("module");
-            int msgIdx = fmt.captureIndex("message");
+            entry.rawLine = line;
+            entry.matched = true;
 
             if (tsIdx >= 0) {
-                entry.timestamp = QDateTime::fromString(
-                    match.captured(tsIdx).trimmed(),
-                    "yyyy-MM-dd HH:mm:ss.zzz");
-                if (!entry.timestamp.isValid()) {
-                    entry.timestamp = QDateTime::fromString(
-                        match.captured(tsIdx).trimmed(),
-                        "yyyy-MM-dd HH:mm:ss");
+                QString tsStr = match.captured(tsIdx).trimmed();
+                if (tryMsFormat) {
+                    entry.timestamp = QDateTime::fromString(tsStr, "yyyy-MM-dd HH:mm:ss.zzz");
+                    if (!entry.timestamp.isValid()) {
+                        tryMsFormat = false;
+                        entry.timestamp = QDateTime::fromString(tsStr, "yyyy-MM-dd HH:mm:ss");
+                    }
+                } else {
+                    entry.timestamp = QDateTime::fromString(tsStr, "yyyy-MM-dd HH:mm:ss");
                 }
             }
             entry.level = (lvIdx >= 0) ? match.captured(lvIdx).trimmed()
@@ -122,12 +140,12 @@ void LogLoader::process()
             entry.message = (msgIdx >= 0) ? match.captured(msgIdx)
                                           : QString();
 
-            for (const QString& fieldName : extraFieldNames) {
-                int idx = fmt.captureIndex(fieldName);
+            for (int ei = 0; ei < extraFieldNames.size(); ++ei) {
+                int idx = extraIdxList[ei];
                 if (idx >= 0) {
                     QString value = match.captured(idx).trimmed();
-                    entry.extraFields[fieldName] = value;
-                    extraFieldSets[fieldName].insert(value);
+                    entry.extraFields[extraFieldNames[ei]] = value;
+                    extraFieldSets[extraFieldNames[ei]].insert(value);
                 }
             }
 
@@ -142,19 +160,27 @@ void LogLoader::process()
                         maxTime = entry.timestamp;
                 }
             }
-            modulesSet.insert(entry.module);
-            levelsSet.insert(entry.level);
+            if (!entry.module.isEmpty())
+                modulesSet.insert(entry.module);
+            if (!entry.level.isEmpty())
+                levelsSet.insert(entry.level);
 
             buffer.append(entry);
-            if (buffer.size() >= m_chunkSize) {
-                emit chunkReady(buffer);
-                buffer.clear();
-                // 仅在块处理完成时计算和发射进度，减少计算频率
-                if (totalBytes > 0) {
-                    int percent =
-                        static_cast<int>((processedBytes * 100) / totalBytes);
-                    emit progress(percent);
-                }
+        } else {
+            // Unmatched line: preserve as raw text
+            LogEntry entry;
+            entry.rawLine = line;
+            entry.matched = false;
+            buffer.append(entry);
+        }
+
+        if (buffer.size() >= m_chunkSize) {
+            emit chunkReady(buffer);
+            buffer.clear();
+            if (totalBytes > 0) {
+                int percent =
+                    static_cast<int>((processedBytes * 100) / totalBytes);
+                emit progress(percent);
             }
         }
     }
