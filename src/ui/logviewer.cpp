@@ -356,6 +356,8 @@ void LogViewer::setupUI()
     int savedMode = AppSettings::instance().getFormatMode();
     if (savedMode >= 0 && savedMode < formatModeCombo->count() - 1) {
         formatModeCombo->setCurrentIndex(savedMode);
+    } else if (savedMode < 0) {
+        formatModeCombo->setCurrentIndex(formatModeCombo->count() - 1);
     }
     connect(formatModeCombo,
             QOverload<int>::of(&QComboBox::currentIndexChanged), this,
@@ -637,8 +639,11 @@ void LogViewer::onFilterButtonClicked()
 
     if (proxyModel) {
         proxyModel->setTimeRange(startTime, endTime);
-        proxyModel->setLevels(selectedLevels);
-        proxyModel->setModules(selectedModules);
+        // Only activate level/module filter when checkboxes exist for that field
+        if (fieldCheckBoxes.contains(QStringLiteral("level")))
+            proxyModel->setLevels(selectedLevels);
+        if (fieldCheckBoxes.contains(QStringLiteral("module")))
+            proxyModel->setModules(selectedModules);
 
         // Apply extra field filters (level and module already handled above)
         proxyModel->clearExtraFieldFilters();
